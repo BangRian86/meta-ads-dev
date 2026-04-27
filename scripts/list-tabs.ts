@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
-import { config } from '../src/config/env.js';
-import { closeDb } from '../src/db/index.js';
+import { appConfig as config } from '../src/modules/00-foundation/index.js';
+import { closeDb } from '../src/modules/00-foundation/index.js';
 
 async function main() {
   const auth = new google.auth.GoogleAuth({

@@ -1,5 +1,5 @@
-import { logger } from '../../lib/logger.js';
-import { recordAudit } from '../../lib/audit-logger.js';
+import { logger } from '../00-foundation/index.js';
+import { recordAudit } from '../00-foundation/index.js';
 import { fetchTaskDetail, type KieTaskStatus } from './kie-client.js';
 import {
   defaultExpiry,
@@ -8,7 +8,7 @@ import {
   listInflightAssets,
   updateAsset,
 } from './asset-store.js';
-import { config } from '../../config/env.js';
+import { appConfig as config } from '../00-foundation/index.js';
 import type { ContentAsset } from '../../db/schema/content-assets.js';
 import type { KieAssetStatus } from './schema.js';
 

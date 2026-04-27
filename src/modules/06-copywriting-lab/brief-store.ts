@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import {
   copyBriefs,
   type CopyBrief,

@@ -1,5 +1,5 @@
 import { google, type sheets_v4 } from 'googleapis';
-import { config } from '../../config/env.js';
+import { appConfig as config } from '../00-foundation/index.js';
 
 let client: sheets_v4.Sheets | null = null;
 

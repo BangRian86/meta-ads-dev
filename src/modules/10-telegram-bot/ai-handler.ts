@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { config } from '../../config/env.js';
-import { logger } from '../../lib/logger.js';
-import { db } from '../../db/index.js';
+import { appConfig as config } from '../00-foundation/index.js';
+import { logger } from '../00-foundation/index.js';
+import { db } from '../00-foundation/index.js';
 import { aiUsageLogs } from '../../db/schema/ai-usage-logs.js';
 import { buildAdsContext, formatContextForPrompt } from './ai-context.js';
 import { computeCostUsd } from './ai-pricing.js';

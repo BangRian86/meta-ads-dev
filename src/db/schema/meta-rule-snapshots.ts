@@ -1,3 +1,7 @@
+// TODO(adoption): Tabel ini belum dipakai di production (0 row per audit
+// 2026-04-27). Snapshot otomatis tercipta saat publish/update/delete rule
+// via modul 07-rules-management — menunggu adopsi rules workflow oleh
+// operator. Hapus TODO ini saat row pertama tercipta.
 import {
   pgTable,
   uuid,

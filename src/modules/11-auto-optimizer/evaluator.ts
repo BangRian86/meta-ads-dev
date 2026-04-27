@@ -1,10 +1,10 @@
 import { and, eq } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import {
   metaObjectSnapshots,
   type MetaObjectSnapshot,
 } from '../../db/schema/meta-object-snapshots.js';
-import { config } from '../../config/env.js';
+import { appConfig as config } from '../00-foundation/index.js';
 import { analyze, type DateRange, type Target } from '../02-ads-analysis/index.js';
 import type { DecisionKind, OptimizerDecision } from './schema.js';
 

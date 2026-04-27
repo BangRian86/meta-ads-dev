@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
-import { db, closeDb } from '../src/db/index.js';
+import { db, closeDb } from '../src/modules/00-foundation/index.js';
 import { metaConnections } from '../src/db/schema/index.js';
 import { detectBudgetOwner } from '../src/modules/04-budget-control/index.js';
-import { config } from '../src/config/env.js';
+import { appConfig as config } from '../src/modules/00-foundation/index.js';
 
 interface TestPair {
   label: string;

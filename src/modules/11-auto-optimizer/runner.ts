@@ -1,6 +1,8 @@
-import { logger } from '../../lib/logger.js';
-import { TokenInvalidError } from '../../lib/auth-manager.js';
-import { notifyOwner } from '../10-telegram-bot/index.js';
+import {
+  logger,
+  notifyOwner,
+  TokenInvalidError,
+} from '../00-foundation/index.js';
 import { detectAndNotifyAnomalies } from '../17-anomaly-alerts/index.js';
 import { evaluate } from './evaluator.js';
 import { executeDecision } from './executor.js';

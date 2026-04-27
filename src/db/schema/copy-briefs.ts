@@ -1,3 +1,8 @@
+// TODO(adoption): Tabel ini belum dipakai di production (0 row per audit
+// 2026-04-27). Schema + modul 06-copywriting-lab brief-store sudah
+// lengkap; copy fix flow saat ini langsung ke `copy_variants` tanpa
+// brief — menunggu operator pakai `createBrief` workflow eksplisit.
+// Hapus TODO ini saat row pertama tercipta.
 import {
   pgTable,
   uuid,

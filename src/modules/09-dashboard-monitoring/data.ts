@@ -1,5 +1,5 @@
 import { and, count, desc, eq, gte, inArray, sql, type SQL } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import {
   metaConnections,
   type MetaConnection,
@@ -411,9 +411,9 @@ export interface AudienceListResult {
 export async function listAudiences(
   connectionId?: string,
 ): Promise<AudienceListResult> {
-  // Lazy-import to avoid pulling auto-optimizer at module-load time.
+  // Lazy-import to avoid pulling audience-builder at module-load time.
   const { listMetaAudiences } = await import(
-    '../11-auto-optimizer/audience-creator.js'
+    '../18-audience-builder/index.js'
   );
 
   const conns = await db

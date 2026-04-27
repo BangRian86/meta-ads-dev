@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { sql } from 'drizzle-orm';
 import { config } from '../config/env.js';
-import { logger } from '../lib/logger.js';
+import { logger } from '../modules/00-foundation/logger.js';
 import * as schema from './schema/index.js';
 
 export const queryClient = postgres(config.databaseUrl, {

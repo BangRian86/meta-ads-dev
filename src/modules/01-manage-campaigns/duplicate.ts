@@ -1,5 +1,5 @@
-import { recordAudit, withAudit } from '../../lib/audit-logger.js';
-import { logger } from '../../lib/logger.js';
+import { recordAudit, withAudit } from '../00-foundation/index.js';
+import { logger } from '../00-foundation/index.js';
 import {
   copyObjectAtMeta,
   deleteObjectAtMeta,

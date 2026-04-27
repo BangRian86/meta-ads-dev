@@ -1,5 +1,5 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import {
   copyVariants,
   type CopyVariant,

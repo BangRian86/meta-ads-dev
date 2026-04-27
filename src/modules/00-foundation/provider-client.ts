@@ -18,12 +18,12 @@
  * kelak auditing + retry seragam.
  */
 
-import { logger } from '../../lib/logger.js';
+import { logger } from './logger.js';
 import {
   mapHttpFailure,
   mapMetaError,
   type MappedMetaError,
-} from '../../lib/error-mapper.js';
+} from './error-mapper.js';
 
 export interface ProviderRequestInit {
   url: URL | string;

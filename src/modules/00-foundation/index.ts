@@ -29,12 +29,39 @@ export * as errorMapper from './error-mapper.js';
 export * as providerClient from './provider-client.js';
 export * as snapshotRepository from './snapshot-repository.js';
 export * as jobDispatcher from './job-dispatcher.js';
+export * as pricing from './pricing.js';
+export * as types from './types.js';
+export * as notifications from './notifications.js';
 
 // Convenience direct re-exports — frequently-used singletons biar
 // nggak perlu nested namespace.
 export { db, schema, pingDb, closeDb } from './database.js';
 export { config as appConfig } from './config.js';
-export { TokenInvalidError } from './auth.js';
+export {
+  TokenInvalidError,
+  requireActiveConnection,
+  markInvalid,
+} from './auth.js';
 export { recordAudit, withAudit } from './audit.js';
+export {
+  mapMetaError,
+  mapHttpFailure,
+  type MappedMetaError,
+} from './error-mapper.js';
 // Logger — singleton pino instance, dipakai hampir semua modul.
-export { logger } from '../../lib/logger.js';
+export { logger, type Logger } from './logger.js';
+// Pricing — Anthropic API cost calculation (cross-module, dipindah dari
+// 10-telegram-bot/ai-pricing.ts April 2026).
+export {
+  MODEL_PRICING,
+  pricingFor,
+  computeCostUsd,
+  usdToIdrApprox,
+  type ModelPricing,
+  type UsageBreakdown,
+} from './pricing.js';
+// Domain types lintas-modul (dipindah dari 14-meta-progress April 2026).
+export type { Brand, Channel } from './types.js';
+// Notification — sender-only Telegraf (dipindah dari 10-telegram-bot
+// April 2026 untuk break circular 11→10, 12→10).
+export { notifyOwner, escapeMd, type NotifyOptions } from './notifications.js';

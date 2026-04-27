@@ -1,10 +1,10 @@
 import { and, desc, eq } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import {
   metaInsightSnapshots,
   type MetaInsightSnapshot,
 } from '../../db/schema/meta-insight-snapshots.js';
-import { config } from '../../config/env.js';
+import { appConfig as config } from '../00-foundation/index.js';
 import type {
   Target,
   DateRange,

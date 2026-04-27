@@ -1,5 +1,5 @@
 import type { Context, MiddlewareFn } from 'telegraf';
-import { logger } from '../../lib/logger.js';
+import { logger } from '../00-foundation/index.js';
 
 /**
  * Middleware: di group/supergroup, drop pesan kecuali memenuhi salah satu:

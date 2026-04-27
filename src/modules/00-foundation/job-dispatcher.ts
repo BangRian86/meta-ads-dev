@@ -21,7 +21,7 @@
 
 import PgBoss from 'pg-boss';
 import { config } from '../../config/env.js';
-import { logger } from '../../lib/logger.js';
+import { logger } from './logger.js';
 
 let boss: PgBoss | null = null;
 let starting: Promise<PgBoss> | null = null;

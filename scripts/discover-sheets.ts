@@ -11,8 +11,8 @@
  * scope production tetap minimal.
  */
 import { google } from 'googleapis';
-import { config } from '../src/config/env.js';
-import { closeDb } from '../src/db/index.js';
+import { appConfig as config } from '../src/modules/00-foundation/index.js';
+import { closeDb } from '../src/modules/00-foundation/index.js';
 import { SHEET_SOURCES } from '../src/modules/13-sheets-integration/index.js';
 
 /** Spreadsheet IDs yang sudah hardcoded di codebase. Dipakai sebagai

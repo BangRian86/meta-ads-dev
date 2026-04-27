@@ -6,12 +6,14 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 // "Cannot read properties of undefined (reading 'def')". Use the v4 entry
 // point so toJSONSchema can introspect properly.
 import { z } from 'zod/v4';
-import { config } from '../../config/env.js';
-import { logger } from '../../lib/logger.js';
-import { db } from '../../db/index.js';
+import {
+  appConfig as config,
+  computeCostUsd,
+  db,
+  logger,
+  type Brand,
+} from '../00-foundation/index.js';
 import { aiUsageLogs } from '../../db/schema/ai-usage-logs.js';
-import { computeCostUsd } from '../10-telegram-bot/ai-pricing.js';
-import type { Brand } from '../14-meta-progress/index.js';
 import type { VariantFields } from './schema.js';
 
 let client: Anthropic | null = null;

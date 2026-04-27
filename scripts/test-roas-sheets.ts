@@ -2,7 +2,7 @@ import {
   buildRoasReport,
   formatRoasReport,
 } from '../src/modules/15-closing-tracker/index.js';
-import { closeDb } from '../src/db/index.js';
+import { closeDb } from '../src/modules/00-foundation/index.js';
 
 async function main(): Promise<number> {
   const t0 = Date.now();

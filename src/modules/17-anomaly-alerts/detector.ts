@@ -1,17 +1,15 @@
 import { and, eq } from 'drizzle-orm';
-import { db } from '../00-foundation/index.js';
+import { db, logger, notifyOwner } from '../00-foundation/index.js';
 import { metaConnections } from '../../db/schema/meta-connections.js';
 import {
   metaObjectSnapshots,
   type MetaObjectSnapshot,
 } from '../../db/schema/meta-object-snapshots.js';
-import { logger } from '../../lib/logger.js';
 import {
   analyze,
   type DateRange,
   type Target,
 } from '../02-ads-analysis/index.js';
-import { notifyOwner } from '../10-telegram-bot/index.js';
 import { isOnCooldown, markSent } from './dedupe.js';
 
 export type AnomalyKind =

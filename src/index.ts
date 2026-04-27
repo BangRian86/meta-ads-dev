@@ -1,7 +1,11 @@
 import { buildServer } from './server.js';
-import { config } from './config/env.js';
-import { logger } from './lib/logger.js';
-import { closeDb, pingDb } from './db/index.js';
+import {
+  appConfig as config,
+  closeDb,
+  jobDispatcher,
+  logger,
+  pingDb,
+} from './modules/00-foundation/index.js';
 import { startBot, stopBot } from './modules/10-telegram-bot/index.js';
 
 async function main(): Promise<void> {
@@ -9,6 +13,18 @@ async function main(): Promise<void> {
     logger.fatal({ err }, 'Database unreachable on startup');
     throw err;
   });
+
+  // pg-boss bootstrap — best-effort, gagal di sini tidak block server boot.
+  // Saat ini belum ada job/worker yang di-register di main; bootstrap dini
+  // memastikan schema `pgboss` siap saat helper pertama dipanggil dari
+  // modul yang butuh (mis. KIE.ai task polling). Lihat
+  // 00-foundation/job-dispatcher.ts untuk API.
+  jobDispatcher
+    .bootstrap()
+    .then(() => logger.info('pg-boss bootstrap complete'))
+    .catch((err) => {
+      logger.error({ err }, 'pg-boss bootstrap failed (non-fatal)');
+    });
 
   const app = await buildServer();
   await startBot();
@@ -21,6 +37,7 @@ async function main(): Promise<void> {
     try {
       await stopBot(signal);
       await app.close();
+      await jobDispatcher.shutdown();
       await closeDb();
       logger.info('Shutdown complete');
       process.exit(0);

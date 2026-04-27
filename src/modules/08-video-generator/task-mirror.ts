@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../../db/index.js';
-import { logger } from '../../lib/logger.js';
+import { db } from '../00-foundation/index.js';
+import { logger } from '../00-foundation/index.js';
 import { kieTasks } from '../../db/schema/kie-tasks.js';
 
 /**

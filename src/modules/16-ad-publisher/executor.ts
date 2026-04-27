@@ -1,10 +1,12 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import {
+  db,
+  logger,
+  notifyOwner,
+  withAudit,
+} from '../00-foundation/index.js';
 import { copyVariants } from '../../db/schema/copy-variants.js';
 import { metaObjectSnapshots } from '../../db/schema/meta-object-snapshots.js';
-import { withAudit } from '../../lib/audit-logger.js';
-import { logger } from '../../lib/logger.js';
-import { notifyOwner } from '../10-telegram-bot/index.js';
 import type { PublishAdPayload } from '../12-approval-queue/index.js';
 import {
   createAdFromCreative,

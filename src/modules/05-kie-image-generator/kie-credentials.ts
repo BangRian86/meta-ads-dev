@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import { kieCredentials, type KieCredential } from '../../db/schema/kie-credentials.js';
-import { logger } from '../../lib/logger.js';
+import { logger } from '../00-foundation/index.js';
 
 export type KieCredentialFailureReason = 'invalid_key' | 'credits_exhausted';
 

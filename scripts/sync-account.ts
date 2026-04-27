@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { syncAccount } from '../src/modules/01-manage-campaigns/index.js';
-import { closeDb, db } from '../src/db/index.js';
+import { closeDb, db } from '../src/modules/00-foundation/index.js';
 import { metaConnections } from '../src/db/schema/index.js';
-import { logger } from '../src/lib/logger.js';
+import { logger } from '../src/modules/00-foundation/index.js';
 
 interface RunResult {
   connectionId: string;

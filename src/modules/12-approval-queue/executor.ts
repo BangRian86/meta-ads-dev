@@ -1,5 +1,5 @@
-import { logger } from '../../lib/logger.js';
-import { TokenInvalidError } from '../../lib/auth-manager.js';
+import { logger } from '../00-foundation/index.js';
+import { TokenInvalidError } from '../00-foundation/index.js';
 import { pause, unpause } from '../03-start-stop-ads/index.js';
 import {
   decreaseBudget,
@@ -9,8 +9,8 @@ import {
 import {
   createLookalike,
   createMultiSourceEngagementAudience,
-} from '../11-auto-optimizer/index.js';
-import { approveOption } from '../10-telegram-bot/copy-fix-store.js';
+} from '../18-audience-builder/index.js';
+import { approveOption } from '../06-copywriting-lab/index.js';
 import { executePublishAd } from '../16-ad-publisher/index.js';
 import { markExecuted, markFailed } from './store.js';
 import type { PendingAction } from '../../db/schema/pending-actions.js';

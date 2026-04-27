@@ -1,4 +1,4 @@
-import { logger } from '../../lib/logger.js';
+import { logger } from '../00-foundation/index.js';
 import { parseShortDate, readSheetData, type SheetRow } from './reader.js';
 
 export type BusinessKind = 'basmalah' | 'aqiqah';

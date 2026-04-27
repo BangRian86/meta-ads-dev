@@ -4,9 +4,8 @@ import Fastify, {
   type FastifyError,
 } from 'fastify';
 import sensible from '@fastify/sensible';
-import { logger } from './lib/logger.js';
+import { logger, TokenInvalidError } from './modules/00-foundation/index.js';
 import { healthRoutes } from './routes/health.js';
-import { TokenInvalidError } from './lib/auth-manager.js';
 import { dashboardRoutes } from './modules/09-dashboard-monitoring/index.js';
 import { KieCredentialError } from './modules/05-kie-image-generator/kie-credentials.js';
 

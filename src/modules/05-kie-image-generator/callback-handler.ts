@@ -1,5 +1,5 @@
-import { logger } from '../../lib/logger.js';
-import { recordAudit } from '../../lib/audit-logger.js';
+import { logger } from '../00-foundation/index.js';
+import { recordAudit } from '../00-foundation/index.js';
 import { kieCallbackPayloadSchema, type KieCallbackPayload } from './schema.js';
 import {
   defaultExpiry,

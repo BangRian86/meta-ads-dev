@@ -71,10 +71,10 @@ dengan Drizzle migration kita.
 Foundation tidak own table-nya sendiri. Tapi dua tabel ini ditambahkan
 sebagai bagian dari blueprint compliance:
 
-| Tabel | Purpose | Owner module |
-|---|---|---|
-| `kie_tasks` | Lifecycle async KIE.ai task | 05-kie-image-generator (future) |
-| `sync_cursors` | Per-(connection, object_type) cursor untuk delta sync | 01-manage-campaigns |
+| Tabel | Purpose | Owner module | Status |
+|---|---|---|---|
+| `kie_tasks` | Lifecycle async KIE.ai task | 05-kie-image-generator | ✅ Implemented (mirror dari `content_assets`) |
+| `sync_cursors` | Per-(connection, object_type) cursor untuk delta sync | 01-manage-campaigns | ⏸️ **DEFERRED** — placeholder schema saja, belum diimplementasi. Disediakan untuk fase berikutnya saat full-account sync (~28k snapshots/run) sudah jadi bottleneck. Saat itu modul 01 akan baca `sync_cursors.last_synced_at` per (connection, object_type) untuk delta-sync (`since=` filter di Graph API). Saat ini setiap sync full-rebuild — masih tractable. |
 
 Tabel lain yang sudah ada tetap milik module aslinya.
 

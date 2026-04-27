@@ -1,5 +1,5 @@
-import { config } from '../../config/env.js';
-import { withAudit } from '../../lib/audit-logger.js';
+import { appConfig as config } from '../00-foundation/index.js';
+import { withAudit } from '../00-foundation/index.js';
 import {
   generateImageInputSchema,
   editImageInputSchema,

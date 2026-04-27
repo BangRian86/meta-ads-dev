@@ -1,9 +1,12 @@
 import { eq } from 'drizzle-orm';
-import { config } from '../../config/env.js';
-import { logger } from '../../lib/logger.js';
-import { TokenInvalidError } from '../../lib/auth-manager.js';
-import { recordAudit } from '../../lib/audit-logger.js';
-import { db } from '../../db/index.js';
+import {
+  appConfig as config,
+  db,
+  logger,
+  notifyOwner,
+  recordAudit,
+  TokenInvalidError,
+} from '../00-foundation/index.js';
 import { copyVariants } from '../../db/schema/copy-variants.js';
 import { metaConnections } from '../../db/schema/meta-connections.js';
 import {
@@ -15,7 +18,6 @@ import {
   generateAiVariantsForBadAd,
   type BadAdContext,
 } from '../06-copywriting-lab/index.js';
-import { notifyOwner } from '../10-telegram-bot/index.js';
 import { detectBrand } from '../14-meta-progress/index.js';
 import {
   enqueue,

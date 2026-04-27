@@ -10,9 +10,9 @@
  *   - Kalau ada critical / warning → kirim ke group.
  */
 import { Telegraf } from 'telegraf';
-import { closeDb } from '../src/db/index.js';
-import { config } from '../src/config/env.js';
-import { logger } from '../src/lib/logger.js';
+import { closeDb } from '../src/modules/00-foundation/index.js';
+import { appConfig as config } from '../src/modules/00-foundation/index.js';
+import { logger } from '../src/modules/00-foundation/index.js';
 import { evaluateAlertsForCron } from '../src/modules/30-sheets-reader/index.js';
 
 async function main(): Promise<number> {

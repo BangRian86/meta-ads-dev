@@ -1,17 +1,15 @@
-import { config } from '../../config/env.js';
-import { logger } from '../../lib/logger.js';
 import {
-  requireActiveConnection,
-  markInvalid,
-  TokenInvalidError,
-} from '../../lib/auth-manager.js';
-import {
+  appConfig as config,
+  db,
+  logger,
   mapHttpFailure,
   mapMetaError,
+  markInvalid,
+  requireActiveConnection,
+  TokenInvalidError,
+  withAudit,
   type MappedMetaError,
-} from '../../lib/error-mapper.js';
-import { withAudit } from '../../lib/audit-logger.js';
-import { db } from '../../db/index.js';
+} from '../00-foundation/index.js';
 import { metaRequestLogs } from '../../db/schema/index.js';
 import {
   createEngagementAudienceInputSchema,

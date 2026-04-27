@@ -1,8 +1,8 @@
 import { Telegraf } from 'telegraf';
 import { and, eq, gte, lte } from 'drizzle-orm';
-import { closeDb, db } from '../src/db/index.js';
-import { config } from '../src/config/env.js';
-import { logger } from '../src/lib/logger.js';
+import { closeDb, db } from '../src/modules/00-foundation/index.js';
+import { appConfig as config } from '../src/modules/00-foundation/index.js';
+import { logger } from '../src/modules/00-foundation/index.js';
 import { metaConnections } from '../src/db/schema/meta-connections.js';
 import { metaObjectSnapshots } from '../src/db/schema/meta-object-snapshots.js';
 import { operationAudits } from '../src/db/schema/operation-audits.js';

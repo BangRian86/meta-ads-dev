@@ -1,4 +1,4 @@
-import { logger } from '../../lib/logger.js';
+import { logger } from '../00-foundation/index.js';
 import { getSheetsClient } from './client.js';
 
 export interface SheetRow {

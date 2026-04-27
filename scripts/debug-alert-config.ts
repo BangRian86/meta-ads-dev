@@ -1,7 +1,7 @@
-import { closeDb } from '../src/db/index.js';
+import { closeDb } from '../src/modules/00-foundation/index.js';
 import { loadAllAlertConfigs } from '../src/modules/30-sheets-reader/index.js';
 import { google } from 'googleapis';
-import { config } from '../src/config/env.js';
+import { appConfig as config } from '../src/modules/00-foundation/index.js';
 
 async function main() {
   const r = await loadAllAlertConfigs();

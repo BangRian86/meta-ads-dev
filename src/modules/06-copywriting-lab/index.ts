@@ -74,3 +74,13 @@ export {
   listForBrief,
   type GenerationOutput,
 } from './service.js';
+
+// Copy-fix store: 3-option workflow yang dipakai optimizer +
+// approval-queue. Dipindah dari 10-telegram-bot/copy-fix-store.ts
+// April 2026 untuk break circular 10↔12.
+export {
+  approveOption,
+  loadLatestDraftBatch,
+  listPendingBatches,
+  type DraftBatchEntry,
+} from './copy-fix-store.js';

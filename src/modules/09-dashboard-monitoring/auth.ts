@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual, randomBytes } from 'node:crypto';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { config } from '../../config/env.js';
+import { appConfig as config } from '../00-foundation/index.js';
 
 export interface DashboardSession {
   username: string;

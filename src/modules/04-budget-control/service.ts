@@ -1,5 +1,5 @@
-import { withAudit } from '../../lib/audit-logger.js';
-import { logger } from '../../lib/logger.js';
+import { withAudit } from '../00-foundation/index.js';
+import { logger } from '../00-foundation/index.js';
 import {
   increaseBudgetInputSchema,
   decreaseBudgetInputSchema,

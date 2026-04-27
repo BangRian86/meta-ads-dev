@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { logger } from '../../lib/logger.js';
+import { logger } from '../00-foundation/index.js';
 
 /**
  * Local cache root untuk video yang sudah di-generate. URL dari KIE

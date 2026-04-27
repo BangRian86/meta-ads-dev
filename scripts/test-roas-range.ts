@@ -3,7 +3,7 @@ import {
   formatRoasReport,
 } from '../src/modules/15-closing-tracker/index.js';
 import { parseDateRange } from '../src/modules/10-telegram-bot/date-args.js';
-import { closeDb } from '../src/db/index.js';
+import { closeDb } from '../src/modules/00-foundation/index.js';
 
 const cases: Array<string[]> = [
   [],

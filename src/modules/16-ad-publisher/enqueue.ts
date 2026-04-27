@@ -1,5 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import { copyVariants } from '../../db/schema/copy-variants.js';
 import { metaConnections } from '../../db/schema/meta-connections.js';
 import { metaObjectSnapshots } from '../../db/schema/meta-object-snapshots.js';

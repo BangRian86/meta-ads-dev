@@ -1,6 +1,6 @@
 import { Telegraf } from 'telegraf';
-import { config } from '../src/config/env.js';
-import { logger } from '../src/lib/logger.js';
+import { appConfig as config } from '../src/modules/00-foundation/index.js';
+import { logger } from '../src/modules/00-foundation/index.js';
 import {
   buildDailyReport,
   getYesterdayReport,

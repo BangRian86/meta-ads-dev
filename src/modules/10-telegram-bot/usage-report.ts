@@ -1,5 +1,5 @@
 import { gte, sql } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import { aiUsageLogs } from '../../db/schema/ai-usage-logs.js';
 import { usdToIdrApprox } from './ai-pricing.js';
 

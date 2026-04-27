@@ -1,11 +1,11 @@
 import { and, eq, inArray, lt } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import {
   contentAssets,
   type ContentAsset,
   type NewContentAsset,
 } from '../../db/schema/content-assets.js';
-import { config } from '../../config/env.js';
+import { appConfig as config } from '../00-foundation/index.js';
 import type { KieAssetStatus, KieAssetType } from './schema.js';
 
 export interface CreatePendingAssetInput {

@@ -1,6 +1,6 @@
 import { Telegraf } from 'telegraf';
-import { config } from '../../config/env.js';
-import { logger } from '../../lib/logger.js';
+import { appConfig as config } from '../00-foundation/index.js';
+import { logger } from '../00-foundation/index.js';
 import { registerCommands } from './commands.js';
 import { groupFilter } from './group-filter.js';
 

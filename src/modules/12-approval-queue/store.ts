@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, like, sql } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import {
   pendingActions,
   type PendingAction,

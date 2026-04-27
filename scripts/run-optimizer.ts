@@ -2,10 +2,10 @@ import { eq } from 'drizzle-orm';
 import { syncAccount } from '../src/modules/01-manage-campaigns/index.js';
 import { runOptimizer } from '../src/modules/11-auto-optimizer/index.js';
 import { escapeMd, notifyOwner } from '../src/modules/10-telegram-bot/index.js';
-import { closeDb, db } from '../src/db/index.js';
+import { closeDb, db } from '../src/modules/00-foundation/index.js';
 import { metaConnections } from '../src/db/schema/index.js';
-import { logger } from '../src/lib/logger.js';
-import { TokenInvalidError } from '../src/lib/auth-manager.js';
+import { logger } from '../src/modules/00-foundation/index.js';
+import { TokenInvalidError } from '../src/modules/00-foundation/index.js';
 
 interface RunRecord {
   connectionId: string;

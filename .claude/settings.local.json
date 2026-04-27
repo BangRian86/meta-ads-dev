@@ -109,7 +109,23 @@
       "WebSearch",
       "Bash(xargs -I {} cat /etc/cron.d/{})",
       "Bash(ps *)",
-      "Bash(awk '{print \"worker_pid=\"$2\" started=\"$9}')"
+      "Bash(awk '{print \"worker_pid=\"$2\" started=\"$9}')",
+      "Bash(awk '{print $2, $9, $10, $11}')",
+      "Bash(grep -E \"\\\\.md$|^d\")",
+      "Bash(sed -n '85,100p' /root/meta-ads-dev/src/modules/10-telegram-bot/commands.ts)",
+      "Bash(sed -n '1567,1620p' /root/meta-ads-dev/src/modules/10-telegram-bot/commands.ts)",
+      "Bash(sed -n '160,170p' /root/meta-ads-dev/src/modules/10-telegram-bot/commands.ts)",
+      "Bash(sed -n '195,200p' /root/meta-ads-dev/src/modules/10-telegram-bot/commands.ts)",
+      "Bash(sed -n '13,20p' /root/meta-ads-dev/src/modules/10-telegram-bot/commands.ts)",
+      "Bash(sed -n '8,15p' /root/meta-ads-dev/src/modules/12-approval-queue/executor.ts)",
+      "Bash(git mv *)",
+      "Bash(mv -v /root/meta-ads-dev/src/modules/10-telegram-bot/copy-fix-store.ts /root/meta-ads-dev/src/modules/06-copywriting-lab/copy-fix-store.ts)",
+      "Bash(sed -i \"s|from '\\\\.\\\\./src/lib/audit-logger\\\\.js'|from '../src/modules/00-foundation/index.js'|g\" *.ts)",
+      "Bash(sed -i \"s|from '\\\\.\\\\./src/lib/auth-manager\\\\.js'|from '../src/modules/00-foundation/index.js'|g\" *.ts)",
+      "Bash(sed -i \"s|from '\\\\.\\\\./src/lib/error-mapper\\\\.js'|from '../src/modules/00-foundation/index.js'|g\" *.ts)",
+      "Bash(sed -i \"s|from '\\\\.\\\\./src/lib/logger\\\\.js'|from '../src/modules/00-foundation/index.js'|g\" *.ts)",
+      "Bash(sed -i \"s|from '\\\\.\\\\./src/db/index\\\\.js'|from '../src/modules/00-foundation/index.js'|g\" *.ts)",
+      "Bash(awk '{print \"  pid=\"$2\" started=\"$9}')"
     ]
   }
 }

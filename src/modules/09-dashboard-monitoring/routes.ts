@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { config } from '../../config/env.js';
+import { appConfig as config } from '../00-foundation/index.js';
 import {
   clearSessionCookie,
   createSessionCookie,

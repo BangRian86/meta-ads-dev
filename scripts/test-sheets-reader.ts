@@ -2,7 +2,7 @@
  * Smoke test for the new Sheets-reader commands. Calls handlers directly
  * (bypass Telegraf) and prints the rendered output.
  */
-import { closeDb } from '../src/db/index.js';
+import { closeDb } from '../src/modules/00-foundation/index.js';
 import {
   handleAlertCommand,
   handleCabangCommand,

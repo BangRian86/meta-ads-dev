@@ -1,3 +1,7 @@
+// TODO(adoption): Tabel ini belum dipakai di production (0 row per audit
+// 2026-04-27). Schema + modul 07-rules-management sudah lengkap; menunggu
+// adopsi operator untuk mulai create draft via /rules Telegram command
+// atau dashboard. Hapus TODO ini saat row pertama tercipta.
 import {
   pgTable,
   uuid,

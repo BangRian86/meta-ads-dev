@@ -11,11 +11,11 @@ import { buildUsageReport, renderUsageReport } from './usage-report.js';
 import {
   approveOption,
   listPendingBatches,
-} from './copy-fix-store.js';
-import { recordAudit } from '../../lib/audit-logger.js';
+} from '../06-copywriting-lab/index.js';
+import { recordAudit } from '../00-foundation/index.js';
 import {
   listMetaAudiences,
-} from '../11-auto-optimizer/index.js';
+} from '../18-audience-builder/index.js';
 import {
   enqueue,
   executePending,
@@ -31,13 +31,12 @@ import {
   type ActionPayload,
   type ActionSummary,
 } from '../12-approval-queue/index.js';
-import { listPendingBatches as _ } from './copy-fix-store.js';
 // (re-importing approveOption no longer needed here; approval flow lives in module 12)
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import { metaConnections } from '../../db/schema/meta-connections.js';
 import { metaObjectSnapshots } from '../../db/schema/meta-object-snapshots.js';
-import { logger } from '../../lib/logger.js';
-import { TokenInvalidError } from '../../lib/auth-manager.js';
+import { logger } from '../00-foundation/index.js';
+import { TokenInvalidError } from '../00-foundation/index.js';
 import {
   isAllowedChat,
   isApprover,
@@ -70,7 +69,7 @@ import {
   enableRule,
   listLatestSnapshots as listRuleSnapshots,
 } from '../07-rules-management/index.js';
-import { config } from '../../config/env.js';
+import { appConfig as config } from '../00-foundation/index.js';
 import {
   buildDailyReport,
   getReportForDate,
@@ -89,13 +88,10 @@ import {
   recordClosing,
   resolveConnectionByAlias,
 } from '../15-closing-tracker/index.js';
-import {
-  evaluateAlerts,
-  formatMultipleResults,
-  MIN_SPEND_IDR,
-  type AlertWindow,
-  type Business,
-} from '../20-roas-alert/index.js';
+// Min-spend filter floor untuk /top dan /worst rankings — campaign dengan
+// spend di bawah ini di-drop supaya list signal-rich. Sebelumnya konstan
+// di 20-roas-alert (deprecated), sekarang inline di sini.
+const MIN_SPEND_IDR = 50_000;
 import {
   handleAlertCommand,
   handleCabangCommand,
@@ -160,7 +156,6 @@ const COMMAND_LIST = [
   '/video [deskripsi] - generate video iklan via KIE.ai Wan 2.7 (T2V, 720p/10s) (approver)',
   '/video_umroh [deskripsi] - generate video umroh dengan konteks Basmalah (approver)',
   '/video_image [deskripsi] - reply photo + command → image-to-video Wan 2.7 (approver)',
-  '/alerts ⚠️ deprecated — pakai /alert (Sheets-based)',
 ];
 
 export function registerCommands(bot: Telegraf): void {
@@ -192,9 +187,6 @@ export function registerCommands(bot: Telegraf): void {
   bot.command('tiktok', wrap(handleTiktok));
   bot.command('alert', wrap(handleAlert));
   bot.command('refresh_cs', wrap(handleRefreshCsCmd, { approver: true }));
-
-  // ── Deprecated: old commands tetap diregister untuk transition window ──
-  bot.command('alerts', wrap(handleAlertsDeprecated));
 
   // Write commands — only approvers (Bang Rian / Naila per .env list).
   bot.command('sync', wrap(handleSync, { approver: true }));
@@ -1510,92 +1502,6 @@ async function handleRoas(ctx: Context, args: string[]): Promise<void> {
   const { since, until, label } = parsed.range;
   const report = await buildRoasReportForRange({ since, until }, label);
   await sendChunked(ctx, formatRoasReport(report));
-}
-
-// ---------- /alerts ----------
-
-const ALERT_WINDOWS: ReadonlySet<AlertWindow> = new Set([
-  'daily',
-  'weekly',
-  'monthly',
-]);
-const ALERT_BUSINESSES: ReadonlySet<Business> = new Set([
-  'basmalah',
-  'aqiqah',
-]);
-
-interface ParsedAlertArgs {
-  window: AlertWindow;
-  businesses: Business[];
-}
-
-function parseAlertArgs(args: string[]): ParsedAlertArgs | { error: string } {
-  let window: AlertWindow = 'daily';
-  let business: Business | null = null;
-  for (const raw of args) {
-    const a = raw.toLowerCase();
-    if (ALERT_WINDOWS.has(a as AlertWindow)) {
-      window = a as AlertWindow;
-      continue;
-    }
-    if (ALERT_BUSINESSES.has(a as Business)) {
-      if (business !== null && business !== a) {
-        return {
-          error:
-            `❌ Eh, jangan dua bisnis sekaligus dong\n` +
-            `Pilih salah satu: basmalah ATAU aqiqah, atau kosongkan untuk cek dua-duanya.\n\n` +
-            `Contoh benar:\n` +
-            `  /alerts basmalah weekly\n` +
-            `  /alerts weekly  (cek dua-duanya)`,
-        };
-      }
-      business = a as Business;
-      continue;
-    }
-    return {
-      error:
-        `❌ Argumen "${raw}" nggak dikenal\n` +
-        `Yang valid: daily, weekly, monthly, basmalah, aqiqah\n` +
-        `Ketik /alerts tanpa argumen untuk cek default.`,
-    };
-  }
-  return {
-    window,
-    businesses: business !== null ? [business] : ['basmalah', 'aqiqah'],
-  };
-}
-
-/**
- * @deprecated /alerts (pakai Meta API + proportional attribution) sudah
- * di-rebuild jadi /alert (Sheets-based) di module 30-sheets-reader.
- * Handler ini dipertahankan supaya transition smooth — kalau user lupa
- * masih ngetik /alerts, kasih jawaban + redirect.
- */
-async function handleAlertsDeprecated(ctx: Context, args: string[]): Promise<void> {
-  const parsed = parseAlertArgs(args);
-  if ('error' in parsed) {
-    await ctx.reply(
-      `${parsed.error}\n\n` +
-        `⚠️ /alerts sudah deprecated — pakai /alert (Sheets-based).`,
-    );
-    return;
-  }
-  try {
-    await ctx.sendChatAction('typing');
-  } catch {
-    // typing indicator best-effort
-  }
-
-  const results = await Promise.all(
-    parsed.businesses.map((b) => evaluateAlerts(b, parsed.window)),
-  );
-  const text =
-    formatMultipleResults(results, { includeHealthyMessage: true }) ??
-    `Belum ada data untuk window ${parsed.window}.`;
-  await sendChunked(
-    ctx,
-    `⚠️ /alerts deprecated — versi baru: /alert\n\n${text}`,
-  );
 }
 
 // ---------- New Sheets-reader command wrappers (Tahap 2) ----------

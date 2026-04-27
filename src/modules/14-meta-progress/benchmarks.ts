@@ -5,16 +5,14 @@
  * "cheap" → ✅ emoji
  * "expensive" → ⚠️ emoji
  * in between → no emoji
+ *
+ * `Brand` + `Channel` types **dipindah ke `00-foundation/types.ts`**
+ * (April 2026) supaya core module 06-copywriting-lab tidak depend
+ * extension. Re-export di sini untuk backward compat.
  */
 
-export type Brand = 'basmalah' | 'aqiqah';
-export type Channel =
-  | 'leads_wa' // Messages/Leads to WhatsApp (CPR)
-  | 'leads_lp' // Leads to landing page (CPR)
-  | 'traffic_lp' // Traffic to landing page (CPC)
-  | 'traffic_wa' // Traffic to WhatsApp (CPR — pseudo)
-  | 'awareness' // Awareness (CPM)
-  | 'sales'; // Conversion / Purchase campaigns (CPR — high-value, high-tier threshold)
+import type { Brand, Channel } from '../00-foundation/types.js';
+export type { Brand, Channel };
 
 export interface Benchmark {
   /** Cap below which the campaign is considered cheap. */

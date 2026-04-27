@@ -1,6 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm';
-import { config } from '../../config/env.js';
-import { db } from '../../db/index.js';
+import { appConfig as config } from '../00-foundation/index.js';
+import { db } from '../00-foundation/index.js';
 import { metaConnections } from '../../db/schema/meta-connections.js';
 import {
   metaObjectSnapshots,

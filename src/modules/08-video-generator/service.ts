@@ -1,4 +1,4 @@
-import { withAudit } from '../../lib/audit-logger.js';
+import { withAudit } from '../00-foundation/index.js';
 import {
   generateVideoInputSchema,
   imageToVideoInputSchema,

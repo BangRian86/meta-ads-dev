@@ -1,5 +1,5 @@
 import type { Context } from 'telegraf';
-import { config } from '../../config/env.js';
+import { appConfig as config } from '../00-foundation/index.js';
 
 /**
  * Allowed scope = owner DM (TELEGRAM_CHAT_ID) OR the configured group chat

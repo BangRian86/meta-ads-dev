@@ -1,4 +1,4 @@
-import { logger } from '../../lib/logger.js';
+import { logger } from '../00-foundation/index.js';
 import { readSheetData } from './reader.js';
 import { SHEET_SOURCES, type BusinessKind, type SheetSource } from './report.js';
 

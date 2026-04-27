@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { db } from '../../db/index.js';
+import { db } from '../00-foundation/index.js';
 import { metaObjectSnapshots } from '../../db/schema/meta-object-snapshots.js';
 import { readBudget, type BudgetReadResult } from './meta-budget.js';
 import type { BudgetSnapshot, BudgetTarget } from './schema.js';
