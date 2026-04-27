@@ -16,7 +16,12 @@ export function renderCampaigns(data: CampaignsData): string {
       : campaignTable(data.campaigns)}
   `;
   return renderPage(
-    { title: 'Campaigns', active: 'campaigns', username: data.username },
+    {
+      title: 'Campaigns',
+      active: 'campaigns',
+      username: data.username,
+      crumbs: [{ href: '/', label: 'Home' }, { label: 'Campaigns' }],
+    },
     body,
   );
 }

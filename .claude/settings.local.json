@@ -107,7 +107,9 @@
       "Bash(echo \"---EXIT $?---\")",
       "Bash(kill 2551977)",
       "WebSearch",
-      "Bash(xargs -I {} cat /etc/cron.d/{})"
+      "Bash(xargs -I {} cat /etc/cron.d/{})",
+      "Bash(ps *)",
+      "Bash(awk '{print \"worker_pid=\"$2\" started=\"$9}')"
     ]
   }
 }

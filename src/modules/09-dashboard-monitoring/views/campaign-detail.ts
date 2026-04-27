@@ -13,12 +13,20 @@ export function renderCampaignDetail(data: DetailViewData): string {
   const c = data.detail.campaign;
   if (!c) {
     const body = html`
-      <div class="crumbs"><a href="/campaigns">Campaigns</a> /</div>
       <h1>Campaign not found</h1>
       <div class="card empty">No snapshot exists for id <code>${data.campaignId}</code>.</div>
     `;
     return renderPage(
-      { title: 'Campaign', active: 'campaigns', username: data.username },
+      {
+        title: 'Campaign',
+        active: 'campaigns',
+        username: data.username,
+        crumbs: [
+          { href: '/', label: 'Home' },
+          { href: '/campaigns', label: 'Campaigns' },
+          { label: 'Not found' },
+        ],
+      },
       body,
     );
   }
@@ -28,7 +36,6 @@ export function renderCampaignDetail(data: DetailViewData): string {
   );
 
   const body = html`
-    <div class="crumbs"><a href="/campaigns">Campaigns</a> / ${c.name || c.objectId}</div>
     <h1>${c.name || '(no name)'}</h1>
     <div class="pill-row" style="margin-bottom:1rem">
       ${statusBadge(c.status)} ${effectiveBadge(c.effectiveStatus)}
@@ -44,6 +51,11 @@ export function renderCampaignDetail(data: DetailViewData): string {
       title: c.name || 'Campaign',
       active: 'campaigns',
       username: data.username,
+      crumbs: [
+        { href: '/', label: 'Home' },
+        { href: '/campaigns', label: 'Campaigns' },
+        { label: c.name || c.objectId },
+      ],
     },
     body,
   );

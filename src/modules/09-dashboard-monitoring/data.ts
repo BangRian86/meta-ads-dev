@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import {
   metaConnections,
@@ -212,6 +212,80 @@ export async function listRecentAssets(limit = 50): Promise<ContentAsset[]> {
     .limit(limit);
 }
 
+export type AssetTypeFilter = 'all' | 'image' | 'video';
+export type AssetStatusFilter = 'all' | 'success' | 'failed' | 'in_progress' | 'expired';
+
+export interface ListAssetsFilters {
+  type?: AssetTypeFilter;
+  status?: AssetStatusFilter;
+  connectionId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedAssets {
+  rows: ContentAsset[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export async function listAssetsFiltered(
+  filters: ListAssetsFilters,
+): Promise<PaginatedAssets> {
+  const page = Math.max(1, filters.page ?? 1);
+  const pageSize = Math.max(1, Math.min(100, filters.pageSize ?? 20));
+  const offset = (page - 1) * pageSize;
+
+  const conditions: SQL[] = [];
+  if (filters.type === 'image') {
+    conditions.push(
+      inArray(contentAssets.assetType, ['image_generated', 'image_edited']),
+    );
+  } else if (filters.type === 'video') {
+    conditions.push(
+      inArray(contentAssets.assetType, ['video_generated', 'video_image_to_video']),
+    );
+  }
+  if (filters.status === 'success') {
+    conditions.push(eq(contentAssets.status, 'success'));
+  } else if (filters.status === 'failed') {
+    conditions.push(eq(contentAssets.status, 'failed'));
+  } else if (filters.status === 'in_progress') {
+    conditions.push(inArray(contentAssets.status, ['pending', 'processing']));
+  } else if (filters.status === 'expired') {
+    conditions.push(eq(contentAssets.status, 'expired'));
+  }
+  if (filters.connectionId) {
+    conditions.push(eq(contentAssets.connectionId, filters.connectionId));
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [{ c } = { c: 0 }] = await db
+    .select({ c: count() })
+    .from(contentAssets)
+    .where(where);
+  const total = Number(c ?? 0);
+
+  const rows = await db
+    .select()
+    .from(contentAssets)
+    .where(where)
+    .orderBy(desc(contentAssets.createdAt))
+    .limit(pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
+}
+
 export interface AssetCounts {
   total: number;
   byStatus: Record<string, number>;
@@ -313,6 +387,251 @@ export async function setKieCredentialKey(
       updatedAt: new Date(),
     })
     .where(eq(kieCredentials.id, credentialId));
+}
+
+// ---------- Audiences (live from Meta API per connection) ----------
+
+export interface AudienceRow {
+  connectionId: string;
+  accountName: string;
+  adAccountId: string;
+  audienceId: string;
+  name: string;
+  subtype: string | null;
+  approximateCount: number | null;
+  deliveryStatus: string | null;
+  operationStatus: string | null;
+}
+
+export interface AudienceListResult {
+  rows: AudienceRow[];
+  errors: Array<{ connectionId: string; accountName: string; message: string }>;
+}
+
+export async function listAudiences(
+  connectionId?: string,
+): Promise<AudienceListResult> {
+  // Lazy-import to avoid pulling auto-optimizer at module-load time.
+  const { listMetaAudiences } = await import(
+    '../11-auto-optimizer/audience-creator.js'
+  );
+
+  const conns = await db
+    .select()
+    .from(metaConnections)
+    .where(
+      connectionId
+        ? eq(metaConnections.id, connectionId)
+        : eq(metaConnections.status, 'active'),
+    )
+    .orderBy(desc(metaConnections.createdAt));
+
+  const rows: AudienceRow[] = [];
+  const errors: AudienceListResult['errors'] = [];
+
+  for (const conn of conns) {
+    if (conn.status !== 'active') continue;
+    try {
+      const list = await listMetaAudiences(conn.id);
+      for (const a of list) {
+        rows.push({
+          connectionId: conn.id,
+          accountName: conn.accountName,
+          adAccountId: conn.adAccountId,
+          audienceId: a.id,
+          name: a.name,
+          subtype: a.subtype,
+          approximateCount: a.approximateCount,
+          deliveryStatus: a.deliveryStatus,
+          operationStatus: a.operationStatus,
+        });
+      }
+    } catch (err) {
+      errors.push({
+        connectionId: conn.id,
+        accountName: conn.accountName,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return { rows, errors };
+}
+
+// ---------- Workflow component statuses ----------
+
+export interface WorkflowComponent {
+  id: string;
+  label: string;
+  description: string;
+  active: boolean;
+  lastRunAt: Date | null;
+  detail: string | null;
+}
+
+export async function workflowComponents(): Promise<WorkflowComponent[]> {
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const [syncRow] = await db
+    .select({ at: sql<Date>`max(${metaObjectSnapshots.fetchedAt})` })
+    .from(metaObjectSnapshots);
+  const [optimizerRow] = await db
+    .select({ at: sql<Date>`max(${operationAudits.createdAt})` })
+    .from(operationAudits)
+    .where(sql`${operationAudits.operationType} like 'optimizer.%'`);
+  const [approvalRow] = await db
+    .select({ c: count() })
+    .from(operationAudits)
+    .where(
+      and(
+        sql`${operationAudits.operationType} like 'pending.%'`,
+        gte(operationAudits.createdAt, oneDayAgo),
+      ),
+    );
+  const [executeRow] = await db
+    .select({ at: sql<Date>`max(${operationAudits.createdAt})` })
+    .from(operationAudits);
+  const [analyzeRow] = await db
+    .select({ at: sql<Date>`max(${operationAudits.createdAt})` })
+    .from(operationAudits)
+    .where(sql`${operationAudits.operationType} like 'analysis.%'`);
+  const [notifyRow] = await db
+    .select({ at: sql<Date>`max(${operationAudits.createdAt})` })
+    .from(operationAudits)
+    .where(sql`${operationAudits.operationType} like '%notify%' or ${operationAudits.operationType} like '%alert%'`);
+
+  const lastSync = parseDate(syncRow?.at);
+  const lastOptimizer = parseDate(optimizerRow?.at);
+  const lastExecute = parseDate(executeRow?.at);
+  const lastAnalyze = parseDate(analyzeRow?.at);
+  const lastNotify = parseDate(notifyRow?.at);
+  const approvalCount24h = Number(approvalRow?.c ?? 0);
+
+  return [
+    {
+      id: 'sync',
+      label: 'Sync',
+      description: 'Pulls campaigns, ad sets and ads from Meta into local snapshots.',
+      active: lastSync != null && Date.now() - lastSync.getTime() < 6 * 60 * 60 * 1000,
+      lastRunAt: lastSync,
+      detail: 'Cron: maa-optimizer (every 3 hours)',
+    },
+    {
+      id: 'analyze',
+      label: 'Analyze',
+      description: 'Reads insights and rule snapshots; flags problems.',
+      active: lastAnalyze != null,
+      lastRunAt: lastAnalyze,
+      detail: 'Triggered by optimizer + analysis flows',
+    },
+    {
+      id: 'optimize',
+      label: 'Optimize',
+      description: 'Auto-optimizer evaluates rules and proposes actions.',
+      active: lastOptimizer != null && Date.now() - lastOptimizer.getTime() < 6 * 60 * 60 * 1000,
+      lastRunAt: lastOptimizer,
+      detail: 'Cron: maa-optimizer (every 3 hours)',
+    },
+    {
+      id: 'notify',
+      label: 'Notify',
+      description: 'Sends Telegram alerts and progress reports.',
+      active: lastNotify != null,
+      lastRunAt: lastNotify,
+      detail: 'Cron: maa-meta-progress, maa-sheets-alerts, maa-daily-summary',
+    },
+    {
+      id: 'approve',
+      label: 'Approve',
+      description: 'Human-in-the-loop approval queue.',
+      active: approvalCount24h > 0,
+      lastRunAt: null,
+      detail: `${approvalCount24h} actions queued in last 24h`,
+    },
+    {
+      id: 'execute',
+      label: 'Execute',
+      description: 'Applies approved actions back to Meta (start/stop/budget).',
+      active: lastExecute != null,
+      lastRunAt: lastExecute,
+      detail: 'Triggered by approval queue + optimizer',
+    },
+  ];
+}
+
+export interface CronJobStatus {
+  id: string;
+  schedule: string;
+  command: string;
+  description: string;
+  lastRunAt: Date | null;
+}
+
+export async function cronJobsStatus(): Promise<CronJobStatus[]> {
+  const fs = await import('node:fs/promises');
+  const jobs: Array<Omit<CronJobStatus, 'lastRunAt'> & { logPath: string }> = [
+    {
+      id: 'maa-optimizer',
+      schedule: '0 */3 * * *',
+      command: 'maa-optimizer',
+      description: 'Sync + evaluate + apply auto-optimizer.',
+      logPath: '/tmp/maa-optimizer.log',
+    },
+    {
+      id: 'maa-meta-progress',
+      schedule: '0 4,9,14 * * *',
+      command: 'maa-meta-progress',
+      description: '3x daily progress report (Telegram).',
+      logPath: '/tmp/maa-meta-progress.log',
+    },
+    {
+      id: 'maa-sheets-alerts',
+      schedule: '0 0 * * *',
+      command: 'maa-sheets-alerts',
+      description: 'Daily Sheets-based ROAS alerts.',
+      logPath: '/tmp/maa-sheets-alerts.log',
+    },
+    {
+      id: 'maa-sheets-daily',
+      schedule: '0 2 * * *',
+      command: 'maa-sheets-daily',
+      description: 'Daily Sheets summary report.',
+      logPath: '/tmp/maa-sheets-daily.log',
+    },
+    {
+      id: 'maa-daily-summary',
+      schedule: '0 0 * * *',
+      command: 'maa-daily-summary',
+      description: 'Daily summary digest.',
+      logPath: '/tmp/maa-daily-summary.log',
+    },
+  ];
+
+  const out: CronJobStatus[] = [];
+  for (const j of jobs) {
+    let lastRunAt: Date | null = null;
+    try {
+      const stat = await fs.stat(j.logPath);
+      lastRunAt = stat.mtime;
+    } catch {
+      /* log not present yet */
+    }
+    out.push({
+      id: j.id,
+      schedule: j.schedule,
+      command: j.command,
+      description: j.description,
+      lastRunAt,
+    });
+  }
+  return out;
+}
+
+function parseDate(v: unknown): Date | null {
+  if (v == null) return null;
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v;
+  const d = new Date(v as string);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 // Suppress unused-import warning for sql tag if future queries need it.

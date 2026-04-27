@@ -72,7 +72,12 @@ export function renderSettings(data: SettingsData): string {
     </div>
   `;
   return renderPage(
-    { title: 'Settings', active: 'settings', username: data.username },
+    {
+      title: 'Settings',
+      active: 'settings',
+      username: data.username,
+      crumbs: [{ href: '/', label: 'Home' }, { label: 'Settings' }],
+    },
     body,
   );
 }

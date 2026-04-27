@@ -13,6 +13,8 @@ import { renderHome } from './views/home.js';
 import { renderCampaigns } from './views/campaigns.js';
 import { renderCampaignDetail } from './views/campaign-detail.js';
 import { renderCreatives } from './views/creatives.js';
+import { renderAudiences } from './views/audiences.js';
+import { renderWorkflows } from './views/workflows.js';
 import { renderSettings } from './views/settings.js';
 import {
   activitySummary,
@@ -20,14 +22,19 @@ import {
   addMetaConnection,
   assetCounts,
   campaignDetail,
+  cronJobsStatus,
+  listAssetsFiltered,
+  listAudiences,
   listCampaigns,
   listKieCredentials,
   listMetaConnections,
-  listRecentAssets,
   recentAudits,
   setKieCredentialKey,
   setMetaConnectionName,
   setMetaConnectionToken,
+  workflowComponents,
+  type AssetStatusFilter,
+  type AssetTypeFilter,
 } from './data.js';
 
 type SessionRequest = FastifyRequest & { dashboardSession?: DashboardSession };
@@ -146,16 +153,74 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.get('/creatives', auth, async (req: SessionRequest, reply) => {
-    const session = req.dashboardSession;
+  app.get<{
+    Querystring: {
+      type?: string;
+      status?: string;
+      connectionId?: string;
+      page?: string;
+    };
+  }>('/creatives', auth, async (req, reply) => {
+    const session = (req as SessionRequest).dashboardSession;
     if (!session) return;
-    const [assets, counts] = await Promise.all([
-      listRecentAssets(50),
+    const type = parseTypeFilter(req.query.type);
+    const status = parseStatusFilter(req.query.status);
+    const connectionId = (req.query.connectionId ?? '').trim();
+    const page = parsePositiveInt(req.query.page, 1);
+    const [assets, counts, connections] = await Promise.all([
+      listAssetsFiltered({
+        type,
+        status,
+        connectionId: connectionId || undefined,
+        page,
+        pageSize: 20,
+      }),
       assetCounts(),
+      listMetaConnections(),
     ]);
     reply.type('text/html').send(
-      renderCreatives({ username: session.username, assets, counts }),
+      renderCreatives({
+        username: session.username,
+        assets,
+        counts,
+        connections,
+        filters: { type, status, connectionId },
+      }),
     );
+  });
+
+  app.get<{ Querystring: { connectionId?: string } }>(
+    '/audiences',
+    auth,
+    async (req, reply) => {
+      const session = (req as SessionRequest).dashboardSession;
+      if (!session) return;
+      const connectionId = (req.query.connectionId ?? '').trim();
+      const [result, connections] = await Promise.all([
+        listAudiences(connectionId || undefined),
+        listMetaConnections(),
+      ]);
+      reply.type('text/html').send(
+        renderAudiences({
+          username: session.username,
+          result,
+          connections,
+          filterConnectionId: connectionId,
+        }),
+      );
+    },
+  );
+
+  app.get('/workflows', auth, async (req: SessionRequest, reply) => {
+    const session = req.dashboardSession;
+    if (!session) return;
+    const [components, cronJobs] = await Promise.all([
+      workflowComponents(),
+      cronJobsStatus(),
+    ]);
+    reply
+      .type('text/html')
+      .send(renderWorkflows({ username: session.username, components, cronJobs }));
   });
 
   app.get<{ Querystring: { ok?: string; err?: string } }>(
@@ -282,6 +347,29 @@ async function renderSettingsPage(
       flash,
     }),
   );
+}
+
+function parseTypeFilter(v: string | undefined): AssetTypeFilter {
+  if (v === 'image' || v === 'video') return v;
+  return 'all';
+}
+
+function parseStatusFilter(v: string | undefined): AssetStatusFilter {
+  if (
+    v === 'success' ||
+    v === 'failed' ||
+    v === 'in_progress' ||
+    v === 'expired'
+  )
+    return v;
+  return 'all';
+}
+
+function parsePositiveInt(v: string | undefined, fallback: number): number {
+  if (!v) return fallback;
+  const n = Number.parseInt(v, 10);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return n;
 }
 
 function redirectSettings(
