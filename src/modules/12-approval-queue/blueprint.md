@@ -13,14 +13,16 @@ publish ad / auto_pause / auto_scale). Tiap entry punya TTL,
 | `schema.ts` | `ActionKind` (9 kind: pause, resume, budget, audience_engagement, audience_lookalike, copy_approve, auto_pause, auto_scale, publish_ad), payload types per kind, `ActionSummary`, `EnqueueInput`. |
 | `store.ts` | CRUD `pending_actions`: `enqueue(input)` (TTL default 24h), `listLivePending`, `findByShortId`, `findOnlyLivePending`, `markApproved / Rejected / Executed / Failed`. `shortId(row)` derive 6-char public ID. |
 | `formatter.ts` | `formatConfirmation(p)` — emoji + 5 line summary + "Ketik 'ya'/'tidak'", `formatPendingList(items)` (cap 10), `formatMultiPendingNudge` (reminder). |
-| `executor.ts` | `executePending(p, opts)` — dispatcher per `actionKind`: pause → `03-start-stop-ads`, budget → `04-budget-control`, audience → `11-auto-optimizer/audience-creator`, copy_approve → `copy-fix-store.approveOption`, publish_ad → `16-ad-publisher`. Token invalid handled, mark Failed dengan detail. |
+| `executor.ts` | `executePending(p, opts)` — dispatcher per `actionKind`: pause → `03-start-stop-ads`, budget → `04-budget-control`, audience → `18-audience-builder`, copy_approve → `06-copywriting-lab/copy-fix-store.approveOption`, publish_ad → `16-ad-publisher`. Token invalid handled, mark Failed dengan detail. |
 | `index.ts` | Barrel export. |
 
 ## Dependensi
 
-- **Modul lain:** `03-start-stop-ads`, `04-budget-control`,
-  `10-telegram-bot/copy-fix-store`, `11-auto-optimizer/audience-creator`,
-  `16-ad-publisher`, `lib/auth-manager` (TokenInvalidError), `lib/logger`.
+- **Modul lain:** `00-foundation` (logger, TokenInvalidError),
+  `03-start-stop-ads`, `04-budget-control`,
+  `06-copywriting-lab` (copy-fix-store.approveOption — pindah dari
+  10-telegram-bot April 2026), `18-audience-builder` (pindah dari
+  11-auto-optimizer/audience-creator April 2026), `16-ad-publisher`.
 - **Tabel database:** `pending_actions` (CRUD).
 - **External API:** none langsung; via modul yang dispatch.
 

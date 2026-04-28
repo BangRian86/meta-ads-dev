@@ -15,6 +15,7 @@ dan kelola lifecycle variant: draft → approved/rejected.
 | `generator.ts` | `generateVariants` — angle templates lokal (benefit-led, urgency, social proof, dll), CTA dictionary by `targetAction`. Tidak butuh API. |
 | `ai-generator.ts` | `generateAiVariantsForBadAd` — call Claude (Anthropic SDK) dengan structured output, log token usage ke `ai_usage_logs` + cost lewat `10-telegram-bot/ai-pricing`. |
 | `reviewer.ts` | `reviewVariant` — score per dimension (clarity, emotion, urgency, brand fit, CTA), pakai dictionary kata emotional/urgency, return `DimensionScore` + notes. |
+| `copy-fix-store.ts` | Manage 3-option copy fix variants (draft → approved). `approveOption(batchId, optionIndex)`, `loadLatestDraftBatch`, `listPendingBatches`. Dipindah dari `10-telegram-bot/copy-fix-store.ts` April 2026 untuk break circular 10↔12 (approval-queue executor butuh approveOption, optimizer butuh approval-queue). |
 | `service.ts` | Public facade: `createBrief / updateBrief / removeBrief / generate / createVariant / review / reviewExternalCopy / setStatus / listForBrief`. Wrap `recordAudit`. |
 | `index.ts` | Barrel export. |
 

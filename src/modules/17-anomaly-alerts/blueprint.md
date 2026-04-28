@@ -15,9 +15,10 @@ Telegram, dengan dedupe 6 jam supaya tidak spam alert yang sama.
 
 ## Dependensi
 
-- **Modul lain:** `00-foundation` (db),
-  `02-ads-analysis` (analyze — read insights), `10-telegram-bot/notifications`
-  (notifyOwner — group-only setelah re-wiring), `lib/logger`.
+- **Modul lain:** `00-foundation` (db, logger, notifyOwner —
+  `notifyOwner` dipindah dari `10-telegram-bot/notifications` April
+  2026 untuk break circular), `02-ads-analysis` (analyze — read
+  insights, group-only setelah re-wiring).
 - **Tabel database:** `meta_connections` (read), `meta_object_snapshots`
   (read), `alert_dedupe` (CRUD).
 - **External API:** Meta Graph API (lewat `02-ads-analysis`).

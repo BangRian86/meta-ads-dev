@@ -125,7 +125,17 @@
       "Bash(sed -i \"s|from '\\\\.\\\\./src/lib/error-mapper\\\\.js'|from '../src/modules/00-foundation/index.js'|g\" *.ts)",
       "Bash(sed -i \"s|from '\\\\.\\\\./src/lib/logger\\\\.js'|from '../src/modules/00-foundation/index.js'|g\" *.ts)",
       "Bash(sed -i \"s|from '\\\\.\\\\./src/db/index\\\\.js'|from '../src/modules/00-foundation/index.js'|g\" *.ts)",
-      "Bash(awk '{print \"  pid=\"$2\" started=\"$9}')"
+      "Bash(awk '{print \"  pid=\"$2\" started=\"$9}')",
+      "Bash(echo \"---exit=$?\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(systemctl list-units *)",
+      "Bash(kill -TERM 2893668)",
+      "Bash(kill -TERM 2115266)",
+      "Bash(disown)",
+      "Bash(echo \"started pid=$!\")",
+      "Bash(grep -B1 \"results [0-2] \\\\|results 1$\" /root/.claude/projects/-root-meta-ads-dev/49214f13-3a71-46f0-b0c2-1f38727f33c2/tool-results/bvu6bxmxh.txt)",
+      "Bash(awk '/^      spend / { if \\(match\\($0, /results \\([0-9]+\\)/, m\\)\\) { if \\(m[1]+0 <= 2\\) print prev \"\\\\n\" $0; } } { prev=$0 }' /root/.claude/projects/-root-meta-ads-dev/49214f13-3a71-46f0-b0c2-1f38727f33c2/tool-results/bvu6bxmxh.txt)",
+      "Bash(claude --version)"
     ]
   }
 }

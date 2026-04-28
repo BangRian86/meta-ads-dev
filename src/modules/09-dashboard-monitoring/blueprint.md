@@ -28,12 +28,12 @@ API key).
 ## Dependensi
 
 - **Modul lain:** `config/env` (dashboard config), `db/index`,
-  semua schema (read-mostly), lazy-import `11-auto-optimizer/audience-creator`
-  untuk `listMetaAudiences`.
+  semua schema (read-mostly), lazy-import `18-audience-builder`
+  untuk `listMetaAudiences` (dipindah dari `11-auto-optimizer/audience-creator` April 2026).
 - **Tabel database:** read-mostly — `meta_connections`, `kie_credentials`,
   `operation_audits`, `meta_request_logs`, `meta_object_snapshots`,
   `content_assets`. Mutations terbatas: connections + KIE creds.
-- **External:** Fastify framework. Meta Graph API (lewat `11-auto-optimizer`).
+- **External:** Fastify framework. Meta Graph API (lewat `18-audience-builder`).
 
 ## Cara Penggunaan
 
@@ -66,8 +66,8 @@ Akses:
 - **Auth gating module-level** — kalau `config.dashboard.isConfigured`
   false, plugin tidak register route protected.
 - **`/audiences` live ke Meta** — pakai `listMetaAudiences` dari
-  `11-auto-optimizer`. Per-akun error di-tampilkan di banner, akun lain
-  tetap di-render.
+  `18-audience-builder` (lazy-import). Per-akun error di-tampilkan di
+  banner, akun lain tetap di-render.
 - **`/workflows` cron status** — derived dari mtime
   `/tmp/maa-*.log`. Bukan dari pg-boss (cron masih di `/etc/cron.d/`).
 - **Mobile-friendly** — nav collapsible di ≤720px, table horizontal-scroll wrap.

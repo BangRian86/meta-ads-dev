@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { db } from '../00-foundation/index.js';
+import { db, logger } from '../00-foundation/index.js';
 import {
   metaObjectSnapshots,
   type MetaObjectSnapshot,
@@ -29,22 +29,53 @@ export async function evaluate(
   const activeCampaigns = await loadActiveCampaigns(connectionId);
   const pausedRecent = await loadRecentlyPausedCampaigns(connectionId);
 
+  // Filter campaign ACTIVE yang sebenernya nggak nayang — yaitu yang
+  // SEMUA adset child-nya sudah PAUSED/DELETED/ARCHIVED. Tanpa filter ini
+  // optimizer akan trigger CPR alert dan copy_fix_suggestion untuk
+  // campaign "ghost active": status di Meta ACTIVE tapi nol delivery,
+  // sehingga CPR pasti naik tinggi (denominator results=0 atau spend dari
+  // sisa learning lama). False alarm yang spam owner.
+  //
+  // Aturan: campaign lolos kalau MINIMAL satu adset child-nya ACTIVE.
+  // Kalau snapshot adset belum ada (mis. sync belum jalan), juga di-skip
+  // — defensive: lebih baik miss legit campaign satu cycle daripada
+  // generate alert palsu.
+  const adsetsByCampaign = await loadLatestAdsetsByCampaign(connectionId);
+  const eligibleCampaigns: MetaObjectSnapshot[] = [];
+  for (const camp of activeCampaigns) {
+    const adsets = adsetsByCampaign.get(camp.objectId) ?? [];
+    const hasActiveAdset = adsets.some((a) => a.status === 'ACTIVE');
+    if (!hasActiveAdset) {
+      logger.info(
+        {
+          campaignId: camp.objectId,
+          campaignName: camp.name,
+          adsetCount: adsets.length,
+          adsetStatuses: adsets.map((a) => a.status),
+        },
+        `Skip campaign ${camp.name}: semua adset paused`,
+      );
+      continue;
+    }
+    eligibleCampaigns.push(camp);
+  }
+
   const decisions: OptimizerDecision[] = [];
   const enriched: CampaignWithSummary[] = [];
 
-  if (activeCampaigns.length > 0) {
+  if (eligibleCampaigns.length > 0) {
     const range: DateRange = {
       since: isoDateOffset(-(config.optimizer.auditWindowDays - 1)),
       until: isoDateOffset(0),
     };
-    const targets: Target[] = activeCampaigns.map((c) => ({
+    const targets: Target[] = eligibleCampaigns.map((c) => ({
       type: 'campaign',
       id: c.objectId,
     }));
     const result = await analyze({ connectionId, targets, range });
 
     for (const t of result.perTarget) {
-      const snap = activeCampaigns.find((c) => c.objectId === t.target.id);
+      const snap = eligibleCampaigns.find((c) => c.objectId === t.target.id);
       if (!snap) continue;
       const createdTime = parseCreatedTime(snap);
       const ageDays =
@@ -178,6 +209,42 @@ async function loadActiveCampaigns(
     }
   }
   return [...latest.values()].filter((r) => r.status === 'ACTIVE');
+}
+
+/**
+ * Map campaign_id → latest adset snapshots (one per distinct adset id).
+ * Dipakai untuk filter "ghost active" campaign — campaign ACTIVE yang
+ * semua adset child-nya sudah pause. Kembalikan latest-per-adset (dedupe
+ * by objectId, ambil fetched_at terbaru) supaya status mencerminkan
+ * snapshot terkini, bukan campur historis.
+ */
+async function loadLatestAdsetsByCampaign(
+  connectionId: string,
+): Promise<Map<string, MetaObjectSnapshot[]>> {
+  const rows = await db
+    .select()
+    .from(metaObjectSnapshots)
+    .where(
+      and(
+        eq(metaObjectSnapshots.connectionId, connectionId),
+        eq(metaObjectSnapshots.objectType, 'adset'),
+      ),
+    );
+  const latestById = new Map<string, MetaObjectSnapshot>();
+  for (const r of rows) {
+    const cur = latestById.get(r.objectId);
+    if (!cur || r.fetchedAt.getTime() > cur.fetchedAt.getTime()) {
+      latestById.set(r.objectId, r);
+    }
+  }
+  const out = new Map<string, MetaObjectSnapshot[]>();
+  for (const a of latestById.values()) {
+    if (!a.campaignId) continue;
+    const list = out.get(a.campaignId);
+    if (list) list.push(a);
+    else out.set(a.campaignId, [a]);
+  }
+  return out;
 }
 
 async function loadRecentlyPausedCampaigns(

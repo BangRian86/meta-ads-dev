@@ -14,6 +14,12 @@ import {
 } from '../14-meta-progress/index.js';
 import { classifyCampaign } from '../14-meta-progress/index.js';
 
+export interface DailyMetrics {
+  spendIdr: number;
+  results: number;
+  cprIdr: number;
+}
+
 export interface CampaignContextRow {
   id: string;
   name: string;
@@ -28,6 +34,15 @@ export interface CampaignContextRow {
   impressions: number;
   clicks: number;
   resultActionType: string | null;
+  /** Spend/results/CPR HARI INI (since=until=today). Dipakai supaya AI bisa
+   *  jawab "iklan apa yang spend hari ini" / "berapa hasil hari ini" tanpa
+   *  recompute dari window 7 hari. Kosong (semua 0) kalau belum ada delivery
+   *  hari ini — itu valid state, bukan missing data. */
+  today: DailyMetrics;
+  /** Spend/results/CPR KEMARIN (since=until=yesterday). Dipakai buat
+   *  perbandingan day-over-day ("hari ini vs kemarin", "kemarin spend
+   *  berapa"). Window 1 hari supaya angkanya benar-benar isolated. */
+  yesterday: DailyMetrics;
   /** Channel benchmark "cheap"/"expensive" untuk metric yang relevan
    *  (CPR untuk leads, CPC untuk traffic, CPM untuk awareness). Helper
    *  buat Claude judge "campaign ini mahal atau murah" tanpa hardcode
@@ -92,6 +107,18 @@ export async function buildAdsContext(): Promise<MultiAccountAdsContext> {
     since: isoDateOffset(-6),
     until: isoDateOffset(0),
   };
+  // Daily breakdown: today (offset 0) dan kemarin (offset -1). Range
+  // since=until=offset supaya analyze() narikin 1-hari window. Snapshot
+  // store di module 02 cache per (range × target), jadi panggilan ke-2/3
+  // di hari yang sama nggak refetch ke Meta.
+  const todayRange: DateRange = {
+    since: isoDateOffset(0),
+    until: isoDateOffset(0),
+  };
+  const yesterdayRange: DateRange = {
+    since: isoDateOffset(-1),
+    until: isoDateOffset(-1),
+  };
 
   const accounts: AccountContext[] = [];
   let grandSpend = 0;
@@ -113,21 +140,37 @@ export async function buildAdsContext(): Promise<MultiAccountAdsContext> {
     const adsetsByCampaign = await loadLatestAdsetsByCampaign(conn.id);
 
     const targets: Target[] = active.map((c) => ({ type: 'campaign', id: c.objectId }));
-    const insights = targets.length > 0
-      ? await analyze({ connectionId: conn.id, targets, range })
-      : null;
+    const [insights, insightsToday, insightsYesterday] = targets.length > 0
+      ? await Promise.all([
+          analyze({ connectionId: conn.id, targets, range }),
+          analyze({ connectionId: conn.id, targets, range: todayRange }),
+          analyze({ connectionId: conn.id, targets, range: yesterdayRange }),
+        ])
+      : [null, null, null];
 
     const activeRows: CampaignContextRow[] = active.map((snap) => {
       const t = insights?.perTarget.find((x) => x.target.id === snap.objectId);
       const s = t?.summary;
+      const sToday = insightsToday?.perTarget.find((x) => x.target.id === snap.objectId)?.summary;
+      const sYest = insightsYesterday?.perTarget.find((x) => x.target.id === snap.objectId)?.summary;
       const objective = extractObjective(snap);
       const adsets = adsetsByCampaign.get(snap.objectId) ?? [];
       const destType = adsets[0]
         ? extractStringField(adsets[0].rawPayload, 'destination_type')
         : null;
-      const channelInfo = classifyCampaign(objective, destType, snap.name);
-      const bench = channelInfo
-        ? lookupBenchmark(brand, channelInfo.channel)
+      const baseChannel = classifyCampaign(objective, destType, snap.name);
+      // Refine berdasarkan resultActionType aktual: kalau Meta optimization
+      // event-nya `purchase`, treat sebagai channel `sales` walaupun objective
+      // di-set OUTCOME_LEADS (legacy campaigns sering begini). Ini supaya
+      // benchmark threshold yang dipakai AI cocok dengan event yang sebenarnya
+      // diukur — bukan sekadar kategori objective.
+      const resultActionType = s?.resultActionType ?? null;
+      const refinedChannel =
+        resultActionType === 'purchase' && baseChannel?.channel !== 'sales'
+          ? { bucket: 'leads' as const, channel: 'sales' as const }
+          : baseChannel;
+      const bench = refinedChannel
+        ? lookupBenchmark(brand, refinedChannel.channel)
         : { cheap: 0, expensive: 0 };
       const budget = extractCampaignBudget(snap, adsets);
       return {
@@ -143,13 +186,23 @@ export async function buildAdsContext(): Promise<MultiAccountAdsContext> {
         ctrPct: s?.ctr ?? 0,
         impressions: s?.impressions ?? 0,
         clicks: s?.clicks ?? 0,
-        resultActionType: s?.resultActionType ?? null,
-        benchmarkLabel: channelInfo?.channel ?? 'unclassified',
+        resultActionType,
+        benchmarkLabel: refinedChannel?.channel ?? 'unclassified',
         benchmarkCheap: bench.cheap,
         benchmarkExpensive: bench.expensive,
         dailyBudgetIdr: budget.dailyBudgetIdr,
         budgetLevel: budget.level,
         hasLifetimeBudget: budget.hasLifetimeBudget,
+        today: {
+          spendIdr: sToday?.spend ?? 0,
+          results: sToday?.results ?? 0,
+          cprIdr: sToday?.cpr ?? 0,
+        },
+        yesterday: {
+          spendIdr: sYest?.spend ?? 0,
+          results: sYest?.results ?? 0,
+          cprIdr: sYest?.cpr ?? 0,
+        },
       };
     });
     activeRows.sort((a, b) => b.spendIdr - a.spendIdr);
@@ -174,6 +227,8 @@ export async function buildAdsContext(): Promise<MultiAccountAdsContext> {
       dailyBudgetIdr: null,
       budgetLevel: null,
       hasLifetimeBudget: false,
+      today: { spendIdr: 0, results: 0, cprIdr: 0 },
+      yesterday: { spendIdr: 0, results: 0, cprIdr: 0 },
     }));
 
     const totals = {
@@ -258,19 +313,51 @@ export function formatContextForPrompt(ctx: MultiAccountAdsContext): string {
 
 function formatCampaignRow(c: CampaignContextRow): string {
   // Benchmark line cuma di-print kalau ke-classify ke channel known.
+  // Label tanpa parens supaya AI gampang match: "benchmark sales", "benchmark leads_wa".
   const benchLine =
     c.benchmarkLabel === 'unclassified' || c.benchmarkLabel === 'paused'
       ? ''
-      : `\n      benchmark (${c.benchmarkLabel}): cheap < Rp ${fmtNum(c.benchmarkCheap)}, expensive > Rp ${fmtNum(c.benchmarkExpensive)}`;
+      : `\n      benchmark ${c.benchmarkLabel}: cheap < Rp ${fmtNum(c.benchmarkCheap)}, expensive > Rp ${fmtNum(c.benchmarkExpensive)}`;
+  // CPR konteks line — kalau result <= 1 dalam 7 hari, CPR signal lemah.
+  // Tanpa konteks ini AI cenderung judge "CPR mahal" hanya dari angka,
+  // padahal 1 konversi dari spend kecil bukan signal yang bisa diandalkan.
+  const cprContext = formatCprContext(c);
   return (
     `    - ${c.name}\n` +
     `      id: ${c.id}\n` +
-    `      objective: ${c.objective ?? 'unknown'}, age: ${c.ageDays ?? '?'}d, delivery: ${c.effectiveStatus}\n` +
+    `      objective: ${c.objective ?? 'unknown'}, channel: ${c.benchmarkLabel}, age: ${c.ageDays ?? '?'}d, delivery: ${c.effectiveStatus}\n` +
     `      ${formatBudgetLine(c)}\n` +
-    `      spend Rp ${fmtNum(c.spendIdr)} | results ${c.results} (${c.resultActionType ?? '-'}) | ` +
-    `CPR Rp ${fmtNum(c.cprIdr)} | CTR ${c.ctrPct}% | impressions ${fmtNum(c.impressions)} | clicks ${fmtNum(c.clicks)}` +
+    `      Hari ini : ${formatDailyMetrics(c.today)}\n` +
+    `      Kemarin  : ${formatDailyMetrics(c.yesterday)}\n` +
+    `      7 hari   : Rp ${fmtNum(c.spendIdr)} spend | ${c.results} results (${c.resultActionType ?? '-'}) | CPR Rp ${fmtNum(c.cprIdr)}\n` +
+    `      detail 7 hari: CTR ${c.ctrPct}% | impressions ${fmtNum(c.impressions)} | clicks ${fmtNum(c.clicks)}` +
+    cprContext +
     benchLine
   );
+}
+
+function formatDailyMetrics(d: DailyMetrics): string {
+  return `Rp ${fmtNum(d.spendIdr)} spend | ${d.results} results | CPR Rp ${fmtNum(d.cprIdr)}`;
+}
+
+/**
+ * Returns a "CPR context" suffix string when the per-result figure is too
+ * thin to be a reliable signal in the 7-day window. Cases:
+ *  - 0 results dengan spend > 0 → CPR=0 di angka, tapi sebenarnya belum ada
+ *    konversi sama sekali. AI harus tahu agar tidak salah klaim "CPR bagus".
+ *  - 1 result → CPR mathematically correct tapi noisy; satu konversi
+ *    bisa karena luck atau outlier. AI harus disclaim dulu sebelum judge.
+ * Selain itu return empty string.
+ */
+function formatCprContext(c: CampaignContextRow): string {
+  if (c.spendIdr <= 0) return '';
+  if (c.results === 0) {
+    return `\n      konteks: belum ada konversi dari spend Rp ${fmtNum(c.spendIdr)} dalam 7 hari — CPR belum bisa dihitung, signal terlalu dini`;
+  }
+  if (c.results === 1) {
+    return `\n      konteks: hanya 1 konversi dari spend Rp ${fmtNum(c.spendIdr)} dalam 7 hari — CPR Rp ${fmtNum(c.cprIdr)} adalah signal lemah, jangan judge mahal/murah dari angka ini saja`;
+  }
+  return '';
 }
 
 function formatBudgetLine(c: CampaignContextRow): string {

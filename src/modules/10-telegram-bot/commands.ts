@@ -106,6 +106,13 @@ import {
   generateImageToVideoForTelegram,
 } from '../08-video-generator/index.js';
 import { parseDateRange } from './date-args.js';
+import {
+  handleClaudeCancel,
+  handleClaudeCommand,
+  handleClaudeConfirm,
+  handleDevCommand,
+  handleDevLogCommand,
+} from './claude-bridge.js';
 
 const TODAY_HELP =
   'Use ID accepted by Meta (15+ digit number) — copy from /status output.';
@@ -208,6 +215,17 @@ export function registerCommands(bot: Telegraf): void {
   bot.command('video', wrap(handleVideo, { approver: true }));
   bot.command('video_umroh', wrap(handleVideoUmroh, { approver: true }));
   bot.command('video_image', wrap(handleVideoImage, { approver: true }));
+
+  // ── Claude Code bridge — STRICT BANG_RIAN ONLY ──
+  // Auth gate ada di dalam handler-nya (gateBangRian), bukan di wrap().
+  // Pakai requireMember sebagai cheap chat-scope check; user-id check
+  // strict ada di handler. Non-Bang-Rian → silent reject (no reply)
+  // supaya existence command tidak leak ke Naila/Raafi/random.
+  bot.command('claude', wrap(handleClaudeCommand));
+  bot.command('dev', wrap(handleDevCommand));
+  bot.command('claude_yes', wrap(handleClaudeConfirm));
+  bot.command('claude_no', wrap(handleClaudeCancel));
+  bot.command('devlog', wrap(handleDevLogCommand));
 
   // Catch-all text handler. Order:
   //   1. Slash command? → already handled, skip
@@ -312,9 +330,10 @@ async function handleNaturalLanguage(ctx: Context, text: string): Promise<void> 
   // trend, revenue dari Sheets jauh lebih akurat lewat Sheets context
   // (langsung baca angka dari source of truth) daripada Meta API context.
   const useSheets = detectSheetsIntent(cleanText);
+  const chatId = ctx.chat?.id;
   const result = useSheets
-    ? await answerSheetsQuestion(cleanText)
-    : await answerQuestion(cleanText);
+    ? await answerSheetsQuestion(cleanText, chatId)
+    : await answerQuestion(cleanText, chatId);
   if (!result.ok) {
     await ctx.reply(`AI: ${result.reason}`);
     return;

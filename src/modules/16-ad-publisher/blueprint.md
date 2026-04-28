@@ -16,9 +16,10 @@ baru + ad baru (PAUSED), via approval-queue.
 
 ## Dependensi
 
-- **Modul lain:** `12-approval-queue` (enqueue, action types),
-  `10-telegram-bot/notifications` (notifyOwner),
-  `lib/audit-logger`, `lib/auth-manager`, `lib/error-mapper`, `config/env`.
+- **Modul lain:** `00-foundation` (recordAudit/withAudit, auth,
+  error-mapper, appConfig, notifyOwner — `notifyOwner` dipindah dari
+  `10-telegram-bot/notifications` April 2026), `12-approval-queue`
+  (enqueue, action types).
 - **Tabel database:** `copy_variants` (read — variant yang approved),
   `meta_object_snapshots` (read — source ad), `meta_connections`
   (read), `meta_request_logs` (write), `pending_actions` (write —

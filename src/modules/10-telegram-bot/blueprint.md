@@ -15,22 +15,23 @@ outbound dari modul lain (optimizer, alert, dll).
 | `group-filter.ts` | Middleware drop chat-noise di group; lolos kalau slash command, mention bot, atau short approval reply ("ya"/"tidak"). |
 | `ai-handler.ts` | `answerQuestion / answerSheetsQuestion / detectCommandIntent / detectSheetsIntent` — Claude API + tool use, dengan SYSTEM_PROMPT konteks brand (Basmalah Travel + Aqiqah Express). Log ke `ai_usage_logs`. |
 | `ai-context.ts` | `buildAdsContext / formatContextForPrompt` — assemble multi-account context (semua connection + campaign + brand classification + benchmark) untuk prompt AI. |
-| `ai-pricing.ts` | `computeCostUsd / usdToIdrApprox` — pricing per 1M token Claude Sonnet/Haiku, multiplier cache. |
+| `ai-pricing.ts` | **Re-export shim** ke `00-foundation/pricing.ts` (deprecated, transition only). Pricing logic dipindah ke `00-foundation` April 2026 — modul baru import langsung dari foundation. |
 | `usage-report.ts` | `buildUsageReport / renderUsageReport` — agregasi token + USD per window (1d/7d/30d). |
-| `notifications.ts` | `notifyOwner(message, opts)` + `escapeMd` — sender-only Telegraf untuk modul yang bukan bot (cron, optimizer). |
+| `notifications.ts` | **Re-export shim** ke `00-foundation/notifications.ts` (deprecated, transition only). `notifyOwner` + `escapeMd` dipindah ke `00-foundation` April 2026 untuk break circular 11→10, 12→10. Modul baru import langsung dari foundation. |
 | `formatters.ts` | `fmtIdr / fmtPct / trim / renderRankingBlock / renderReportBlock / renderStatusBlock`. |
-| `copy-fix-store.ts` | Manage 3-option copy fix variants (draft → approved). `approveOption(batchId, optionIndex)`, `listPendingBatches`. |
 | `date-args.ts` | Parser arg tanggal command (`/report 7d`, `/report 2026-04-01..2026-04-26`). |
 | `index.ts` | Barrel export `startBot / stopBot / notifyOwner / formatters / auth helpers`. |
 
 ## Dependensi
 
-- **Modul lain (banyak):** `01-manage-campaigns`, `02-ads-analysis`,
-  `03-start-stop-ads`, `04-budget-control`, `05-kie-image-generator`,
-  `06-copywriting-lab`, `07-rules-management`, `08-video-generator`,
+- **Modul lain (banyak):** `00-foundation` (db, logger, appConfig,
+  recordAudit, pricing, notifications), `01-manage-campaigns`,
+  `02-ads-analysis`, `03-start-stop-ads`, `04-budget-control`,
+  `05-kie-image-generator`, `06-copywriting-lab` (termasuk
+  `copy-fix-store`), `07-rules-management`, `08-video-generator`,
   `11-auto-optimizer`, `12-approval-queue`, `13-sheets-integration`,
   `14-meta-progress`, `15-closing-tracker`, `16-ad-publisher`,
-  `30-sheets-reader`. Plus `lib/audit-logger`, `lib/logger`, `config/env`.
+  `18-audience-builder`, `30-sheets-reader`.
 - **Tabel database:** `aiusage_logs` (write — token cost), `copy_variants`
   (CRUD via copy-fix), plus read tabel modul lain via mereka.
 - **External API:** Telegram Bot API (Telegraf), Anthropic Claude API,
@@ -66,9 +67,11 @@ User flow di Telegram:
   `detectSheetsIntent` untuk routing free-text ke command yang tepat.
 - **Cost tracking** — setiap call Claude tercatat ke `ai_usage_logs`
   via `computeCostUsd`. `/usage` command render report.
-- **Sender-only Telegraf di `notifications.ts`** — modul cron-based
-  (mis. optimizer) tidak boleh share `bot.ts` instance karena bot
-  punya polling loop. `notifyOwner` lazy-create singleton sender.
+- **Sender-only Telegraf** — modul cron-based (mis. optimizer) tidak
+  boleh share `bot.ts` instance karena bot punya polling loop.
+  `notifyOwner` lazy-create singleton sender. Logic owner-nya sekarang
+  di `00-foundation/notifications.ts`; file `10-telegram-bot/notifications.ts`
+  cuma re-export shim untuk transition.
 - **Brand classification** di `ai-context.ts` — assemble konteks
   Basmalah Travel + Aqiqah Express (pusat/jatim/jabar/jogja) supaya
   AI bisa bedakan akun saat user tanya cross-account.

@@ -17,6 +17,56 @@ function getClient(): Anthropic | null {
   return client;
 }
 
+// Conversation history per Telegram chat. Disimpan in-memory (Map) supaya
+// bot bisa nyambung waktu user balas "opsi 1", "ya itu", "yang pertama" —
+// tanpa history Claude lupa konteks pertanyaan sebelumnya.
+//
+// Aturan:
+// - Maks 10 pesan terakhir per chat (5 pasang user/assistant). Lebih dari
+//   itu turn lama digeser keluar — context window cukup tanpa membengkak.
+// - Idle 30 menit → reset. Percakapan baru di chat yang sama dianggap
+//   topik baru, jadi history lama dibuang supaya nggak nyemarin jawaban.
+// - Hanya text question + assistant text yang disimpan. Data context
+//   (snapshot Meta API / Sheets) di-rebuild fresh tiap call dan ditempel
+//   ke user message terbaru — supaya angka selalu up-to-date dan history
+//   tidak ikut menggelembung dengan blob context.
+type ChatMsg = { role: 'user' | 'assistant'; content: string };
+type HistoryEntry = { messages: ChatMsg[]; lastActivity: number };
+
+const HISTORY_MAX_MESSAGES = 10;
+const HISTORY_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+
+const conversationHistory = new Map<number, HistoryEntry>();
+
+function getHistory(chatId: number | undefined): ChatMsg[] {
+  if (chatId === undefined) return [];
+  const entry = conversationHistory.get(chatId);
+  if (!entry) return [];
+  if (Date.now() - entry.lastActivity > HISTORY_IDLE_TIMEOUT_MS) {
+    conversationHistory.delete(chatId);
+    return [];
+  }
+  return entry.messages;
+}
+
+function appendHistory(
+  chatId: number | undefined,
+  userMsg: string,
+  assistantMsg: string,
+): void {
+  if (chatId === undefined) return;
+  const existing = conversationHistory.get(chatId);
+  const stillFresh =
+    existing && Date.now() - existing.lastActivity <= HISTORY_IDLE_TIMEOUT_MS;
+  const messages = stillFresh ? existing.messages : [];
+  messages.push({ role: 'user', content: userMsg });
+  messages.push({ role: 'assistant', content: assistantMsg });
+  while (messages.length > HISTORY_MAX_MESSAGES) {
+    messages.shift();
+  }
+  conversationHistory.set(chatId, { messages, lastActivity: Date.now() });
+}
+
 const SYSTEM_PROMPT_BASE = `Kamu adalah Meta Ads assistant yang mengelola beberapa ad account sekaligus untuk grup bisnis ini (Basmalah Travel — agen perjalanan umroh, dan Aqiqah Express — layanan aqiqah dengan beberapa region: PUSAT, JATIM, JABAR, JOGJA/Yogyakarta). Setiap akun di context block ditandai dengan baris "ACCOUNT: <nama> (act_<id>)" + "brand: aqiqah/basmalah".
 
 Jawab HANYA berdasarkan data di blok "Data context" — jangan mengarang angka, nama campaign, akun, atau tren. Kalau pertanyaan butuh data yang tidak ada di context, sampaikan terus terang.
@@ -29,7 +79,22 @@ Konvensi data:
 - Campaign status PAUSED = sedang tidak spend; ACTIVE = sedang spend.
 - effective_status menunjukkan pengiriman iklan: ACTIVE = delivering, CAMPAIGN_PAUSED / PAUSED = tidak delivering, DISAPPROVED / WITH_ISSUES = diblokir.
 - "GRAND TOTALS" di bagian atas adalah agregat lintas semua akun. Setiap section "ACCOUNT:" adalah satu ad account.
-- Setiap campaign punya "benchmark (channel): cheap < Rp X, expensive > Rp Y" — ini threshold per-bisnis × per-channel. CPR di bawah cheap = bagus ✅, di atas expensive = buruk ⚠️. Channel "sales" punya tier threshold lebih tinggi karena event-nya purchase.
+- Tiap campaign punya 3 baris breakdown waktu: "Hari ini" (today, sejak jam 00:00 WIB), "Kemarin" (1 hari penuh sebelumnya), dan "7 hari" (window 7 hari termasuk hari ini). Format tiap baris: "Rp X spend | Y results | CPR Rp Z".
+- "Hari ini : Rp 0 spend | 0 results | CPR Rp 0" = campaign belum delivery hari ini (atau Meta belum laporkan). Jangan langsung simpulkan paused — cross-check ke baris "delivery:" dan "Kemarin" dulu.
+- Untuk pertanyaan "data hari ini" / "spend hari ini" / "results hari ini" → pakai HANYA baris "Hari ini", JANGAN angka 7 hari. Sebut akun + campaign + angkanya.
+- Untuk pertanyaan "data kemarin" / "kemarin spend berapa" → pakai HANYA baris "Kemarin".
+- Untuk perbandingan "hari ini vs kemarin" / "naik atau turun dari kemarin" → bandingkan angka di baris "Hari ini" dengan baris "Kemarin", sebut delta absolut + arah (naik/turun). Hati-hati: kalau "Hari ini" masih jam pagi, perbandingan belum apple-to-apple — sebutkan caveat ini kalau relevan.
+- Tiap campaign punya field "channel: <name>" — ini hasil klasifikasi otomatis dari objective + destination_type + nama campaign. Nilai: leads_wa, leads_lp, traffic_wa, traffic_lp, awareness, sales, atau unclassified. Channel ini menentukan benchmark mana yang dipakai untuk judge mahal/murah.
+- Tiap campaign punya baris "benchmark <channel>: cheap < Rp X, expensive > Rp Y" — ini threshold per-bisnis × per-channel. CPR di bawah cheap = bagus ✅, di atas expensive = buruk ⚠️.
+- ATURAN PENTING — match benchmark dengan channel: SELALU pakai benchmark yang sama dengan field "channel:" di baris campaign tersebut. JANGAN bandingkan CPR campaign sales dengan benchmark leads_wa, atau CPR leads_wa dengan benchmark sales. Threshold antar channel beda jauh:
+  · Channel sales (Basmalah): cheap < Rp 100.000, expensive > Rp 300.000 — event purchase, high-intent, mahal per event tapi bernilai.
+  · Channel sales (Aqiqah): cheap < Rp 100.000, expensive > Rp 250.000.
+  · Channel leads_wa (kedua brand): cheap < Rp 10.000, expensive > Rp 30.000 — event chat WhatsApp, frequent, murah.
+  · Channel leads_lp (Basmalah): cheap < Rp 25.000, expensive > Rp 50.000. (Aqiqah: cheap < Rp 20.000, expensive > Rp 45.000.)
+  · Channel traffic_lp: cheap < Rp 300, expensive > Rp 1.500 — event link click.
+  · Channel awareness: cheap < Rp 10.000, expensive > Rp 25.000.
+- Saat menjawab analisis, SEBUTKAN secara eksplisit benchmark mana yang dipakai. Contoh: "CPR Rp 150.000 — di tengah benchmark sales (cheap < 100k, expensive > 300k), masih oke." Bukan: "CPR Rp 150.000 — mahal." (operator perlu tahu konteks supaya bisa challenge analisis.)
+- KONTEKS LOW-RESULT — kalau campaign row punya baris "konteks: hanya 1 konversi..." atau "konteks: belum ada konversi...", ITU SIGNAL LEMAH. JANGAN langsung bilang "CPR mahal" / "harus pause" hanya dari CPR yang tinggi. 1 konversi dari spend kecil bisa karena outlier/luck — perlu data minimal 3-5 konversi sebelum CPR jadi reliable. Sebut konteks ini di jawaban (mis. "spend baru Rp X dengan 1 konversi, butuh data lebih banyak sebelum bisa simpulkan").
 - Tiap campaign punya baris "Budget harian: Rp X (CBO|ABO)". CBO = budget di-set di campaign level dan dibagi otomatis ke adset. ABO = budget di-set per-adset; angka yang ditampilkan adalah SUM daily_budget semua adset aktif (non-paused). "pakai lifetime_budget" = campaign nggak pakai daily, ada total budget jangka panjang. "belum ke-sync" = data field belum tersedia dari sync terakhir.
 
 Filter akun berbasis pertanyaan:
@@ -40,8 +105,8 @@ Cara menjawab:
 - Default jawaban dalam Bahasa Indonesia. Kalau pertanyaan dalam Bahasa Inggris, baru jawab Inggris.
 - Singkat dan padat — biasanya 2-4 paragraf pendek. Hindari basa-basi.
 - Selalu sebutkan akun + nama campaign + id kalau jawaban menyangkut campaign tertentu. Jangan ambigu — operator mengelola banyak akun.
-- Untuk pertanyaan "campaign terjelek" / "yang harus di-pause" / "rekomendasi perbaikan": rangking by CPR vs benchmark expensive (paling jauh di atas = paling buruk), tampilkan top 3 kandidat dengan nama + akun + id + CPR vs benchmark + alasan singkat.
-- Untuk "yang harus di-scale": rangking by CPR vs benchmark cheap + spend signifikan + age > learning phase, tampilkan top 3.
+- Untuk pertanyaan "campaign terjelek" / "yang harus di-pause" / "rekomendasi perbaikan": rangking by CPR vs benchmark expensive PADA CHANNEL YANG SAMA (paling jauh di atas = paling buruk), tampilkan top 3 kandidat dengan nama + akun + id + channel + CPR vs benchmark channel itu + alasan singkat. Skip kandidat dengan results <= 1 (signal lemah) atau sebut secara eksplisit kalau ditampilkan.
+- Untuk "yang harus di-scale": rangking by CPR vs benchmark cheap PADA CHANNEL YANG SAMA + spend signifikan + age > learning phase, tampilkan top 3. Pastikan kandidat punya minimal 3-5 konversi supaya CPR reliable.
 - Untuk "akun mana yang...?" atau "perbandingan antar akun", pakai data subtotal/grand total.
 - Untuk ROAS dari Meta API: data TIDAK punya revenue/nilai konversi, hanya jumlah "results" dan CPR. Kalau ditanya ROAS, jelaskan bahwa revenue per result di luar scope context ini dan arahkan user pakai /roas (Sheets-based).
 - Untuk pertanyaan budget harian ("berapa budget X", "budget campaign Y berapa"): jawab dengan angka pasti dari baris "Budget harian:" di context — bukan estimasi dari spend atau spend rata-rata. Selalu sebut apakah CBO atau ABO supaya operator tahu di level mana budget di-set. Kalau baris budget "belum ke-sync" atau "pakai lifetime_budget", bilang terus terang dan jangan tebak angkanya.
@@ -151,7 +216,10 @@ Cara menjawab:
 - Plain text, JANGAN Markdown (Telegram render literal).
 - Kalau data yang dibutuhkan TIDAK ada di context (mis. tab tertentu gagal di-baca, periode di luar window 30 hari, atau metric belum tercatat di Sheets), bilang terus terang.`;
 
-export async function answerSheetsQuestion(question: string): Promise<AnswerResult> {
+export async function answerSheetsQuestion(
+  question: string,
+  chatId?: number,
+): Promise<AnswerResult> {
   const c = getClient();
   if (!c) return { ok: false, reason: 'AI not configured (set ANTHROPIC_API_KEY).' };
 
@@ -171,6 +239,8 @@ export async function answerSheetsQuestion(question: string): Promise<AnswerResu
     return { ok: false, reason: `Sheets context load gagal: ${msg}` };
   }
 
+  const history = getHistory(chatId);
+
   try {
     const response = await c.messages.create({
       model: config.anthropic.model,
@@ -183,6 +253,7 @@ export async function answerSheetsQuestion(question: string): Promise<AnswerResu
         },
       ],
       messages: [
+        ...history.map((m) => ({ role: m.role, content: m.content })),
         {
           role: 'user',
           content: [
@@ -229,6 +300,8 @@ export async function answerSheetsQuestion(question: string): Promise<AnswerResu
       );
     }
 
+    appendHistory(chatId, question, textBlock.text);
+
     logger.debug({ ...usage }, 'AI sheets answer generated');
     return { ok: true, text: textBlock.text, usage };
   } catch (err) {
@@ -248,7 +321,10 @@ export async function answerSheetsQuestion(question: string): Promise<AnswerResu
   }
 }
 
-export async function answerQuestion(question: string): Promise<AnswerResult> {
+export async function answerQuestion(
+  question: string,
+  chatId?: number,
+): Promise<AnswerResult> {
   const c = getClient();
   if (!c) return { ok: false, reason: 'AI not configured (set ANTHROPIC_API_KEY).' };
 
@@ -270,6 +346,8 @@ export async function answerQuestion(question: string): Promise<AnswerResult> {
     return { ok: false, reason: `Could not load ads context: ${msg}` };
   }
 
+  const history = getHistory(chatId);
+
   try {
     const response = await c.messages.create({
       model: config.anthropic.model,
@@ -282,6 +360,7 @@ export async function answerQuestion(question: string): Promise<AnswerResult> {
         },
       ],
       messages: [
+        ...history.map((m) => ({ role: m.role, content: m.content })),
         {
           role: 'user',
           content: [
@@ -328,6 +407,8 @@ export async function answerQuestion(question: string): Promise<AnswerResult> {
     } catch (logErr) {
       logger.warn({ err: logErr }, 'Failed to persist ai_usage_logs row');
     }
+
+    appendHistory(chatId, question, textBlock.text);
 
     logger.debug({ accountCount, ...usage }, 'AI answer generated');
     return { ok: true, text: textBlock.text, usage };

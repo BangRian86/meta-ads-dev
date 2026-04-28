@@ -32,6 +32,10 @@ supaya tidak proliferasi.
 ├── provider-client.ts        # Base HTTP wrapper (Meta/KIE/Sheets/etc.)
 ├── snapshot-repository.ts    # Generic snapshot reader
 ├── job-dispatcher.ts         # pg-boss wrapper
+├── logger.ts                 # Singleton pino logger (env-driven level)
+├── pricing.ts                # Anthropic API cost calculator (pindah dari 10-telegram-bot/ai-pricing April 2026)
+├── notifications.ts          # Sender-only Telegraf notifyOwner (pindah dari 10-telegram-bot April 2026 untuk break circular 11→10, 12→10)
+├── types.ts                  # Domain types lintas-modul (Brand, Channel — pindah dari 14-meta-progress April 2026)
 ├── index.ts                  # Aggregated re-exports
 ├── blueprint.md              # This file
 └── PRD.md                    # Detailed requirements + migration plan
